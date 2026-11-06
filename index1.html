@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>PulseStar — Stars Mining</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config = { theme: { extend: {
+  colors: { bg:'#121212', card:'#1A1A1A', line:'#2A2A2A', gold:'#EAB308', amber:'#F59E0B', ok:'#34D27B', bad:'#F87171' },
+  fontFamily: { display:['Unbounded','sans-serif'], sans:['Manrope','sans-serif'] }
+}}};
+</script>
+<style>
+  html,body{background:#121212;color:#EDEDED;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
+  body{font-family:'Manrope',sans-serif;padding-top:env(safe-area-inset-top)}
+  .card{background:rgba(26,26,26,.72);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.09);border-radius:20px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+  .glow{text-shadow:0 0 28px rgba(250,204,21,.55)}
+  .ps-star{position:relative;filter:drop-shadow(0 0 8px rgba(250,204,21,.8));animation:psBeat 2.2s ease-in-out infinite}
+  .ps-ring{position:absolute;inset:4px;border-radius:50%;border:1.5px solid rgba(250,204,21,.6);animation:psPing 2.2s ease-out infinite}
+  .ps-word{text-shadow:0 0 18px rgba(250,204,21,.35)}
+  @keyframes psBeat{0%,100%{transform:scale(.94)}18%{transform:scale(1.1)}32%{transform:scale(.98)}46%{transform:scale(1.06)}}
+  @keyframes psPing{0%{transform:scale(.8);opacity:.8}100%{transform:scale(1.7);opacity:0}}
+  #bar{box-shadow:0 0 14px rgba(250,204,21,.7)}
+  .num{font-variant-numeric:tabular-nums}
+  .cta{background:linear-gradient(180deg,#FACC15,#F59E0B);color:#1a1200;box-shadow:0 8px 28px rgba(245,158,11,.28),inset 0 1px 0 rgba(255,255,255,.4);transition:transform .12s}
+  .cta:active{transform:scale(.97)}
+  .cta:disabled{opacity:.35;box-shadow:none;filter:grayscale(.4)}
+  .pulse{animation:pulse 1.8s ease-in-out infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(52,210,123,.6)}50%{box-shadow:0 0 0 6px rgba(52,210,123,0)}}
+  .bump{animation:bump .5s ease}
+  @keyframes bump{40%{transform:scale(1.08);color:#FACC15}}
+  .tab{color:#7a7a7a;transition:color .15s}
+  .tab.on{color:#F59E0B}.tab.on .dot{opacity:1}
+  .dot{opacity:0;width:5px;height:5px;border-radius:50%;background:#F59E0B;margin-top:2px}
+  .view{display:none}.view.on{display:block}
+  .seg{padding:10px;border-radius:10px;font-size:12px;font-weight:700;color:#8a8a8a;transition:all .2s}
+  .seg.on{background:linear-gradient(180deg,#FACC15,#F59E0B);color:#1a1200}
+  .chip{padding:9px 14px;border-radius:12px;border:1px solid #2A2A2A;background:#1A1A1A;font-size:12px;font-weight:700;color:#bbb;white-space:nowrap;transition:all .15s}
+  .chip.on{border-color:#F59E0B;color:#F59E0B;background:rgba(245,158,11,.12)}
+  .pre{padding:10px 0;border-radius:12px;border:1px solid #2A2A2A;background:#121212;font-size:13px;font-weight:700;color:#EAB308}
+  .pre:active{background:rgba(245,158,11,.15)}
+  .noscroll::-webkit-scrollbar{display:none}.noscroll{scrollbar-width:none}
+  input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+  /* ===== Menu modal ===== */
+  #menuModal{position:fixed;left:0;right:0;top:0;bottom:var(--navh,64px);z-index:25;display:flex;align-items:flex-end;justify-content:center;visibility:hidden;pointer-events:none;transition:visibility 0s .28s}
+  #menuModal.open{visibility:visible;pointer-events:auto;transition-delay:0s}
+  #menuModal .bd{position:absolute;inset:0;background:rgba(0,0,0,.62);backdrop-filter:blur(3px);opacity:0;transition:opacity .28s}
+  #menuModal.open .bd{opacity:1}
+  #menuModal .sheet{position:relative;width:100%;max-width:448px;max-height:100%;overflow-y:auto;background:#121212;border:1px solid #262626;border-bottom:0;border-radius:28px 28px 0 0;padding:20px 16px 20px;transform:translateY(40px);opacity:0;transition:transform .28s cubic-bezier(.2,.8,.2,1),opacity .28s;box-shadow:0 -12px 40px rgba(0,0,0,.5)}
+  #menuModal.open .sheet{transform:none;opacity:1}
+  .mgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .mcard{position:relative;text-align:left;background:#1A1A1A;border:1px solid #262626;border-radius:20px;padding:14px;min-height:150px;display:flex;flex-direction:column;box-shadow:0 8px 24px rgba(0,0,0,.35);transition:transform .12s,border-color .15s}
+  .mcard:active{transform:scale(.97);border-color:#F59E0B}
+  .mcard::after{content:"";position:absolute;inset:0;border-radius:20px;background:radial-gradient(120px 80px at 0 0,rgba(245,158,11,.10),transparent 70%);pointer-events:none}
+  .mico{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;color:#FACC15;background:linear-gradient(145deg,rgba(250,204,21,.18),rgba(245,158,11,.06));border:1px solid rgba(245,158,11,.28)}
+  .mbadge{position:absolute;top:12px;right:12px;display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:800;letter-spacing:.04em;padding:4px 8px;border-radius:999px}
+  .b-gold{background:rgba(250,204,21,.14);color:#FACC15;border:1px solid rgba(250,204,21,.35)}
+  .b-new{background:rgba(245,158,11,.12);color:#F59E0B;border:1px solid rgba(245,158,11,.35)}
+  .b-new i{width:6px;height:6px;border-radius:50%;background:#F59E0B;box-shadow:0 0 8px #F59E0B;animation:blink 1.4s ease-in-out infinite}
+  .b-vip{background:linear-gradient(180deg,#FACC15,#F59E0B);color:#1a1200}
+  .b-hot{background:rgba(248,113,113,.14);color:#FB923C;border:1px solid rgba(251,146,60,.4)}
+  @keyframes blink{50%{opacity:.35}}
+  #menuBtn .ico-x{display:none}
+  #menuBtn.open .ico-grid{display:none}
+  #menuBtn.open .ico-x{display:block}
+  #menuBtn.open{color:#F59E0B}
+  #menuBtn.open .ico-x{filter:drop-shadow(0 0 6px rgba(245,158,11,.9));background:rgba(245,158,11,.14);border-radius:50%;padding:2px;box-sizing:content-box;margin:-2px}
+
+  /* ===== Upgrader ===== */
+  .uwheel{position:relative;width:100%;max-width:290px;aspect-ratio:1;margin:0 auto;border-radius:50%;transition:box-shadow .3s}
+  .uwheel.win{box-shadow:0 0 50px rgba(52,210,123,.45),inset 0 0 40px rgba(52,210,123,.12)}
+  .uwheel.lose{box-shadow:0 0 50px rgba(248,113,113,.45),inset 0 0 40px rgba(248,113,113,.12);animation:shake .45s}
+  @keyframes shake{20%{transform:translateX(-7px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
+  .uwheel svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+  #upPtr{position:absolute;inset:0;transform-origin:50% 50%;will-change:transform;filter:drop-shadow(0 0 6px rgba(250,204,21,.8))}
+  .ucenter{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none}
+  .spark{position:absolute;left:50%;top:50%;font-size:16px;pointer-events:none;animation:spark .95s ease-out forwards}
+  @keyframes spark{to{transform:translate(var(--dx),var(--dy)) scale(.4) rotate(220deg);opacity:0}}
+  .mulc{padding:9px 0;border-radius:12px;border:1px solid #2A2A2A;background:#121212;font-size:12px;font-weight:800;color:#bbb;transition:all .15s}
+  .mulc.on{border-color:#F59E0B;color:#F59E0B;background:rgba(245,158,11,.12);box-shadow:0 0 14px rgba(245,158,11,.18)}
+  .ugo{box-shadow:0 8px 28px rgba(245,158,11,.35),0 0 0 1px rgba(250,204,21,.4) inset}
+  .hrow{animation:hin .35s ease}
+  @keyframes hin{from{opacity:0;transform:translateY(-6px)}}
+  .ubox{background:#121212;border:1px solid #262626;border-radius:12px}
+  /* ===== Floating dock ===== */
+  #dock{border-radius:26px;box-shadow:0 12px 36px rgba(0,0,0,.6)}
+  #menuBtn{width:56px;height:56px;border-radius:50%;margin:-22px auto 0;justify-content:center;gap:0;color:#1a1200;background:linear-gradient(180deg,#FACC15,#F59E0B);box-shadow:0 0 0 6px rgba(245,158,11,.14),0 0 32px rgba(245,158,11,.65);transition:transform .15s}
+  #menuBtn:active{transform:scale(.94)}
+  #menuBtn .dot,#menuBtn span.lbl{display:none}
+  #menuBtn.open,#menuBtn.on{color:#1a1200}
+  #menuBtn.open .ico-x{filter:none;background:none;padding:0;margin:0}
+  .tab.on .dot{box-shadow:0 0 8px #F59E0B}
+  /* ===== Welcome language modal ===== */
+  #welcome{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(10,10,10,.82);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);transition:opacity .4s ease,visibility .4s}
+  #welcome.out{opacity:0;visibility:hidden;pointer-events:none}
+  #welcome .wcard{position:relative;width:100%;max-width:380px;border-radius:28px;padding:28px 20px 22px;background:#1A1A1A;border:1.5px solid rgba(245,158,11,.6);box-shadow:0 0 0 1px rgba(250,204,21,.12),0 0 46px rgba(245,158,11,.28),0 24px 60px rgba(0,0,0,.6);transform:translateY(0) scale(1);transition:transform .4s ease;overflow:hidden}
+  #welcome.out .wcard{transform:translateY(10px) scale(.97)}
+  .wbtn{display:flex;align-items:center;gap:14px;width:100%;padding:15px 18px;border-radius:18px;background:#121212;border:1px solid #2c2c2c;font-weight:700;font-size:16px;color:#EDEDED;text-align:left;transition:border-color .15s,box-shadow .15s,transform .12s}
+  .wbtn:hover,.wbtn:focus-visible{border-color:#F59E0B;box-shadow:0 0 22px rgba(245,158,11,.3)}
+  .wbtn:active{transform:scale(.98)}
+  .wbtn .fl{font-size:26px;line-height:1}
+  .cmp .seg{padding:6px 0;font-size:11px}
+  .cmp .pre{padding:6px 0;font-size:12px}
+  .cmp .mulc{padding:7px 0}
+  button:focus-visible,input:focus-visible{outline:2px solid #F59E0B;outline-offset:2px}
+</style>
+</head>
+<body class="min-h-screen font-sans">
+<div aria-hidden="true" class="fixed inset-x-0 top-0 h-[62vh] overflow-hidden pointer-events-none" style="z-index:0">
+  <div class="absolute -left-10 top-0 w-[380px] h-[380px] rounded-full" style="background:radial-gradient(closest-side,rgba(245,158,11,.16),transparent)"></div>
+  <svg class="absolute" style="left:-70px;top:-40px;width:540px;height:540px;transform:rotate(12deg);filter:drop-shadow(0 0 40px rgba(245,158,11,.5))" viewBox="0 0 200 200"><defs><linearGradient id="wmStar" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FACC15"/><stop offset="1" stop-color="#F59E0B"/></linearGradient></defs><polygon points="100,10 123,75 192,75 136,116 157,182 100,142 43,182 64,116 8,75 77,75" fill="url(#wmStar)" fill-opacity=".1" stroke="#FACC15" stroke-opacity=".28" stroke-width="1.2" stroke-linejoin="round"/><polygon points="100,38 114,80 160,80 123,106 137,150 100,124 63,150 77,106 40,80 86,80" fill="none" stroke="#F59E0B" stroke-opacity=".15"/></svg>
+</div>
+
+<header class="sticky top-0 z-20 bg-bg/40 backdrop-blur-md px-4 pt-3 pb-3 flex items-center gap-2">
+  <div class="relative w-9 h-9 shrink-0 grid place-items-center" aria-hidden="true">
+    <span class="ps-ring"></span>
+    <svg class="ps-star" width="36" height="36" viewBox="0 0 24 24"><defs><linearGradient id="psg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FDE047"/><stop offset="1" stop-color="#F59E0B"/></linearGradient></defs><path d="M12 2l3 7 7.5.6-5.7 5 1.8 7.4L12 18l-6.6 4 1.8-7.4-5.7-5L9 9z" fill="url(#psg)" stroke="#FACC15" stroke-width=".6" stroke-linejoin="round"/></svg>
+  </div>
+  <div class="leading-tight min-w-0"><div class="font-display text-[16px] font-bold tracking-wide ps-word">Pulse<span class="text-gold">Star</span></div><div class="text-[10px] text-neutral-500 font-semibold">Telegram Stars Mining</div></div>
+  <div class="flex-1"></div>
+  <button id="lang" class="h-9 px-3 rounded-xl card text-xs font-bold" aria-label="Language">RU</button>
+  <button id="hdrLvlBtn" class="h-9 px-3 rounded-xl card text-xs font-bold text-gold"><span id="hdrLvl">Ур. 1</span></button>
+  <div class="w-9 h-9 rounded-full card grid place-items-center overflow-hidden" id="avatar">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#bbb" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+  </div>
+</header>
+
+<main class="px-4 pb-32 max-w-md mx-auto relative z-[1]">
+
+<!-- ========== MINING ========== -->
+<section id="v-mining" class="view on space-y-3">
+  <div class="card p-5">
+    <div class="text-xs text-neutral-400" data-i="balance">Баланс в приложении</div>
+    <div class="font-display text-[34px] font-bold mt-1 num glow"><span id="bal">0.00</span> <span class="text-gold">⭐</span></div>
+  </div>
+  <div class="card p-5">
+    <div class="flex items-center gap-2 text-sm">
+      <span class="w-2.5 h-2.5 rounded-full bg-ok pulse"></span>
+      <span class="font-semibold" data-i="active">Активный майнинг</span><span class="text-neutral-500">—</span><span class="text-ok font-semibold" data-i="working">Работает</span>
+    </div>
+    <div class="font-display text-[30px] font-bold text-ok mt-3 num"><span id="mined">0.0000</span> <span class="text-base">⭐</span></div>
+    <div class="mt-4">
+      <div class="flex justify-between text-xs mb-1.5"><span class="text-neutral-400" data-i="toNext">До следующего уровня</span><span class="font-bold text-gold num" id="pct">0%</span></div>
+      <div class="h-2.5 rounded-full bg-[#262626] overflow-hidden"><div id="bar" class="h-full rounded-full bg-gradient-to-r from-amber to-gold transition-all duration-700" style="width:0%"></div></div>
+      <div class="text-[11px] text-neutral-500 mt-1.5 num" id="need"></div>
+    </div>
+  </div>
+  <button id="collect" class="cta w-full rounded-2xl py-4 font-display text-[13px] font-bold" data-i="collect">Собрать намайненное</button>
+  <div class="grid grid-cols-3 gap-2.5">
+    <div class="card p-3 text-center"><div class="text-[11px] text-neutral-400" data-i="perHour">В час</div><div class="font-bold mt-1 num">~<span id="sHour">1.62</span> ⭐</div></div>
+    <div class="card p-3 text-center"><div class="text-[11px] text-neutral-400" data-i="perDay">В сутки</div><div class="font-bold mt-1 num">~<span id="sDay">38.89</span> ⭐</div></div>
+    <div class="card p-3 text-center"><div class="text-[11px] text-neutral-400" data-i="boost">Буст</div><div class="font-bold mt-1 text-amber num" id="sBoost">×1.0</div></div>
+  </div>
+  <div class="card p-4">
+    <div class="text-[11px] text-neutral-400 mb-2" data-i="statusT">Статус майнера</div>
+    <div class="grid grid-cols-3 gap-2 text-center">
+      <div class="rounded-xl bg-bg p-2.5"><div class="text-[10px] text-neutral-500" data-i="level">Уровень</div><div id="mStLvl" class="font-bold text-gold num"></div></div>
+      <div class="rounded-xl bg-bg p-2.5"><div class="text-[10px] text-neutral-500" data-i="speedH">Скорость ⭐/ч</div><div id="mStSpeed" class="font-bold num"></div></div>
+      <div class="rounded-xl bg-bg p-2.5"><div class="text-[10px] text-neutral-500" data-i="holdBot">Холд в боте</div><div id="mStHold" class="font-bold num"></div></div>
+    </div>
+  </div>
+  <button id="leagueCard" class="card p-4 flex items-center gap-3 w-full text-left">
+    <div id="leagueIcon" class="w-12 h-12 rounded-2xl grid place-items-center text-2xl">🥉</div>
+    <div class="flex-1 min-w-0">
+      <div class="font-bold"><span id="league">Бронзовая лига</span> — <span id="lvlTxt">Ур. 1</span></div>
+      <div class="text-xs text-neutral-400 mt-0.5"><span data-i="holdL">Холд</span>: <span id="holdTxt" class="text-neutral-200 num">0</span> ⭐ · <span data-i="holdInfo">определяет уровень и доход</span></div>
+    </div>
+    <span class="text-gold">›</span>
+  </button>
+  <button id="mineUp" class="card w-full p-4 flex items-center gap-3 text-left" style="border-color:rgba(245,158,11,.3)">
+    <span class="mico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V5M5.5 11.5L12 5l6.5 6.5M6 20h12"/></svg></span>
+    <span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="font-display text-[13px] font-bold" data-i="mup">Апгрейдер</span><span class="mbadge b-hot" style="position:static">HOT</span></span><span class="block text-[12px] text-neutral-400 mt-1" data-i="mupD">Рискуй ⭐ и умножай баланс/холд</span></span>
+    <span class="text-gold">›</span>
+  </button>
+  <div class="card p-4 text-xs text-neutral-400 leading-relaxed">
+    <div class="font-bold text-neutral-200 mb-1" data-i="rulesT">Как это работает</div>
+    <span data-i="rules"></span>
+  </div>
+</section>
+
+<!-- ========== LEVELS ========== -->
+<section id="v-levels" class="view space-y-3">
+  <div class="pt-2">
+    <h2 class="font-display text-lg font-bold" data-i="lvTab">Уровни</h2>
+    <p class="text-xs text-neutral-400 mt-1" data-i="lvSub">Система 500 уровней: чем больше холд, тем выше доход</p>
+  </div>
+  <div class="card p-4">
+    <div class="text-[11px] text-neutral-400 mb-2" data-i="status">Ваш текущий статус</div>
+    <div class="grid grid-cols-3 gap-2 text-center">
+      <div class="rounded-xl bg-bg p-2.5"><div class="text-[10px] text-neutral-500" data-i="level">Уровень</div><div id="stLvl" class="font-bold text-gold num"></div></div>
+      <div class="rounded-xl bg-bg p-2.5"><div class="text-[10px] text-neutral-500" data-i="speedH">Скорость ⭐/ч</div><div id="stSpeed" class="font-bold num"></div></div>
+      <div class="rounded-xl bg-bg p-2.5"><div class="text-[10px] text-neutral-500" data-i="boost">Буст</div><div id="stBoost" class="font-bold text-amber num"></div></div>
+    </div>
+  </div>
+  <div class="card p-4">
+    <div class="flex items-center justify-between gap-3">
+      <span class="text-sm font-semibold" data-i="calcL">Рассчитать уровень:</span>
+      <div class="flex items-center gap-1.5">
+        <button id="cMinus" class="w-8 h-8 rounded-lg bg-bg border border-line font-bold" aria-label="-">−</button>
+        <div class="flex items-center gap-1 rounded-lg bg-bg border border-line px-2 h-8"><span class="text-xs text-neutral-400" data-i="lvl">Ур.</span><input id="cLvl" type="number" min="1" max="500" value="1" class="bg-transparent w-12 outline-none font-bold text-gold text-center num" aria-label="Level"></div>
+        <button id="cPlus" class="w-8 h-8 rounded-lg bg-bg border border-line font-bold" aria-label="+">+</button>
+      </div>
+    </div>
+    <input id="cRange" type="range" min="1" max="500" value="1" class="w-full mt-3 accent-amber" aria-label="Level slider">
+    <div class="grid grid-cols-2 gap-2 mt-3">
+      <div class="rounded-xl bg-bg p-3"><div class="text-[10px] text-neutral-500" data-i="cHold">Необходимый холд</div><div id="rHold" class="font-bold mt-1 num"></div></div>
+      <div class="rounded-xl bg-bg p-3"><div class="text-[10px] text-neutral-500" data-i="cDaily">Суточный доход</div><div id="rDaily" class="font-bold mt-1 text-ok num"></div></div>
+      <div class="rounded-xl bg-bg p-3"><div class="text-[10px] text-neutral-500" data-i="cSpeed">Скорость</div><div id="rSpeed" class="font-bold mt-1 num"></div></div>
+      <div class="rounded-xl bg-bg p-3"><div class="text-[10px] text-neutral-500" data-i="boost">Буст</div><div id="rBoost" class="font-bold mt-1 text-amber num"></div></div>
+      <div class="rounded-xl bg-bg p-3 col-span-2"><div class="text-[10px] text-neutral-500" data-i="tRoiL">Окупаемость холда</div><div id="rRoi" class="font-bold mt-1 num"></div></div>
+    </div>
+    <button id="toShop" class="cta w-full rounded-xl py-3 mt-3 text-[12px] font-display font-bold" data-i="toShop">Пополнить холд</button>
+  </div>
+  <div class="flex items-center justify-between gap-2 pt-1">
+    <div class="text-xs text-neutral-400"><span data-i="lvRangeL">Диапазон уровней</span>: <b id="lvRangeTxt" class="text-neutral-200 num"></b></div>
+    <button id="lvMe" class="h-8 px-3 rounded-lg card text-[11px] font-bold text-gold" data-i="lvMe">📍 Мой уровень</button>
+  </div>
+  <div id="rangeChips" class="flex gap-2 overflow-x-auto noscroll -mx-4 px-4 pb-1"></div>
+  <div class="relative card overflow-hidden">
+    <div id="lvHead" class="grid items-center gap-1 px-3 py-2 text-[10px] font-bold text-neutral-500 bg-[#161616] border-b border-line" style="grid-template-columns:40px 1fr 1fr 52px 44px">
+      <span data-i="tLv">Ур.</span><span class="text-right" data-i="tHold">Холд</span><span class="text-right" data-i="tDay">⭐/день</span><span class="text-right" data-i="tBoost">Буст</span><span class="text-right" data-i="tRoi">Окуп.</span>
+    </div>
+    <div id="lvScroll" class="overflow-y-auto overscroll-contain" style="max-height:58vh;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:#3a3a3a transparent">
+      <div id="lvList"></div>
+      <button id="lvMore" class="chip w-full hidden my-2 mx-auto" style="width:calc(100% - 16px);margin-left:8px" data-i="more">Показать ещё</button>
+    </div>
+  </div>
+  <div class="text-[10px] text-neutral-500 leading-snug px-1" data-i="roiHint">Окуп. — за сколько суток дополнительный доход уровня покрывает холд.</div>
+</section>
+
+<!-- ========== UPGRADER ========== -->
+<section id="v-upgrader" class="view cmp space-y-2">
+  <div class="flex items-center justify-between gap-2 pt-1">
+    <button id="upBack" class="h-8 px-2.5 rounded-xl card text-xs font-bold flex items-center gap-1"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg><span data-i="nMenu">Меню</span></button>
+    <h2 class="font-display text-[15px] font-bold" data-i="mup">Апгрейдер</h2>
+    <button id="upLv" class="h-8 px-2.5 rounded-xl card text-xs font-bold text-gold" data-i="lvTab">Уровни</button>
+  </div>
+
+  <div class="uwheel" id="upWheel" style="width:min(188px,27vh);max-width:none">
+    <svg viewBox="0 0 220 220" aria-hidden="true">
+        <circle cx="110" cy="110" r="100" fill="#141414" stroke="#262626"/>
+        <circle id="upRed" cx="110" cy="110" r="84" fill="none" stroke="#F87171" stroke-opacity=".85" stroke-width="16"/>
+        <circle id="upArc" cx="110" cy="110" r="84" fill="none" stroke="#34D27B" stroke-width="16" pathLength="100" stroke-dasharray="48 52" transform="rotate(-90 110 110)" style="filter:drop-shadow(0 0 5px rgba(52,210,123,.7))"/>
+        <g id="upTicks" stroke="#3a3a3a" stroke-width="1.5" stroke-linecap="round"></g>
+        <circle cx="110" cy="110" r="52" fill="#1A1A1A" stroke="#2A2A2A"/>
+      </svg>
+    <div id="upPtr"><svg viewBox="0 0 220 220"><polygon points="110,30 102,10 118,10" fill="#FACC15"/><line x1="110" y1="30" x2="110" y2="58" stroke="#FACC15" stroke-width="2" stroke-linecap="round" opacity=".7"/></svg></div>
+    <div class="ucenter">
+      <div id="upC1" class="font-display text-[19px] font-bold text-gold num">x2.00</div>
+      <div id="upC2" class="text-[10px] text-neutral-400 mt-0.5 num">48.00%</div>
+    </div>
+  </div>
+  <div class="text-center leading-tight">
+    <div id="upRes" class="font-display text-[12px] font-bold min-h-[16px]"></div>
+    <div id="upZone" class="text-[10px] text-neutral-500 num"></div>
+  </div>
+
+  <div class="card p-2.5 space-y-2">
+    <div class="flex items-center gap-2">
+      <div class="ubox flex items-center px-2.5 h-9 gap-1.5 flex-1 min-w-0"><span class="text-gold text-sm">⭐</span><input id="upBetIn" type="number" inputmode="decimal" min="1" step="any" value="10" class="bg-transparent flex-1 min-w-0 outline-none font-bold num text-sm" aria-label="Bet"></div>
+      <div class="text-[10px] text-neutral-400 text-right leading-tight shrink-0"><span data-i="upBal">Баланс</span><br><b id="upBal" class="text-neutral-200 num text-[11px]">0.00</b> ⭐</div>
+    </div>
+    <div class="grid grid-cols-5 gap-1.5" id="upQuick">
+      <button class="pre" data-q="10">10</button><button class="pre" data-q="50">50</button><button class="pre" data-q="100">100</button><button class="pre" data-q="500">500</button><button class="pre" data-q="max" data-i="max">MAX</button>
+    </div>
+    <div class="grid gap-1.5" id="upMults" style="grid-template-columns:repeat(4,1fr) 1.15fr"></div>
+    <div class="grid grid-cols-3 gap-1.5 text-center">
+      <div class="ubox py-1.5"><div class="text-[9px] text-neutral-500" data-i="upChance">Шанс</div><div id="upChV" class="font-bold text-ok num text-[13px]">48%</div></div>
+      <div class="ubox py-1.5"><div class="text-[9px] text-neutral-500" data-i="upMult">Множитель</div><div id="upMuV" class="font-bold text-amber num text-[13px]">x2</div></div>
+      <div class="ubox py-1.5"><div class="text-[9px] text-neutral-500" data-i="upWin">Выигрыш</div><div id="upWiV" class="font-bold num text-[13px]">20 ⭐</div></div>
+    </div>
+    <div class="grid grid-cols-2 gap-2">
+      <div class="grid grid-cols-2 gap-1 p-1 rounded-xl bg-bg border border-line" id="upMode"><button class="seg on" data-mode="under" data-i="upUnder">Меньше</button><button class="seg" data-mode="over" data-i="upOver">Больше</button></div>
+      <div class="grid grid-cols-2 gap-1 p-1 rounded-xl bg-bg border border-line" id="upPay"><button class="seg on" data-pay="bal" data-i="upBalT">Баланс</button><button class="seg" data-pay="hold" data-i="upHoldT">Холд</button></div>
+    </div>
+  </div>
+
+  <div id="upStick" class="sticky z-20 -mx-4 px-4 pt-3 pb-6" style="bottom:var(--navh,92px);background:linear-gradient(rgba(18,18,18,0),#121212 40%)">
+    <button id="upGo" class="cta ugo w-full rounded-2xl py-3.5 font-display font-bold text-[14px] tracking-wide" data-i="upGo">АПГРЕЙДИТЬ</button>
+  </div>
+
+  <div class="card p-4">
+    <div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 rounded-full bg-ok pulse"></span><span class="text-sm font-bold" data-i="upHist">Последние апгрейды</span></div>
+    <div class="text-[10px] text-neutral-500 mb-3" data-i="upRisk">Ставка сгорает при промахе. Шанс = 96 / множитель.</div>
+    <div id="upList" class="space-y-1.5"></div>
+  </div>
+</section>
+
+<!-- ========== TASKS ========== -->
+<section id="v-tasks" class="view space-y-3">
+  <div class="flex items-center justify-between pt-2">
+    <button id="tkBack" class="h-9 px-3 rounded-xl card text-xs font-bold flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg><span data-i="nMenu">Меню</span></button>
+    <span id="tkCnt" class="text-[11px] font-bold text-gold num"></span>
+  </div>
+  <div>
+    <h2 class="font-display text-lg font-bold" data-i="mtasks">Задания</h2>
+    <p class="text-xs text-neutral-400 mt-1" data-i="tkSub">Выполняй задания и получай ⭐ на баланс</p>
+  </div>
+  <div id="tkFilter" class="flex gap-2 overflow-x-auto noscroll -mx-4 px-4 pb-1"></div>
+  <div id="tkList" class="space-y-2.5"></div>
+</section>
+
+<!-- ========== STAKE ========== -->
+<section id="v-stake" class="view space-y-3">
+  <div class="flex items-center justify-between pt-2">
+    <button id="skBack" class="h-9 px-3 rounded-xl card text-xs font-bold flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg><span data-i="nMenu">Меню</span></button>
+    <button id="skShop" class="h-9 px-3 rounded-xl card text-xs font-bold text-gold" data-i="skShop">Магазин</button>
+  </div>
+  <div>
+    <h2 class="font-display text-lg font-bold" data-i="skTitle">Внутренний холд PulseStar</h2>
+    <p class="text-xs text-neutral-400 mt-1 leading-snug" data-i="skSub">Заморозка баланса для повышения уровня, буста и гарантированного процента</p>
+  </div>
+
+  <div class="grid grid-cols-2 gap-2.5">
+    <div class="card p-4">
+      <div class="text-[11px] text-neutral-400" data-i="skBalL">Доступно на балансе</div>
+      <div class="font-display text-xl font-bold mt-1.5 num"><span id="skBal">0</span> <span class="text-gold">⭐</span></div>
+      <button id="skMax" class="mt-2.5 text-[11px] font-bold text-gold px-3 py-1.5 rounded-lg bg-[#242424]" data-i="max">Макс</button>
+    </div>
+    <div class="card p-4">
+      <div class="text-[11px] text-neutral-400" data-i="skLeagueL">Лига и уровень</div>
+      <div class="font-display text-[15px] font-bold mt-1.5"><span id="skLg"></span></div>
+      <div id="skHoldT" class="text-[11px] text-neutral-300 mt-2 num"></div>
+      <div class="h-1.5 rounded-full bg-[#262626] overflow-hidden mt-1.5"><div id="skCap" class="h-full rounded-full" style="width:0%;background:linear-gradient(90deg,#F59E0B,#FACC15);box-shadow:0 0 10px rgba(250,204,21,.6)"></div></div>
+      <button id="skLim" class="mt-2.5 text-[10px] font-bold text-gold px-2.5 py-1.5 rounded-lg bg-[#242424]" data-i="skAll">Все лимиты</button>
+    </div>
+  </div>
+  <div id="skLimBox" class="card p-4 hidden">
+    <div class="text-xs font-bold mb-0.5" data-i="skLimT">Лимиты холда по лигам</div>
+    <div class="text-[10px] text-neutral-500 mb-2.5 leading-snug" data-i="skLimN">Лимит растёт вместе с уровнем: от начала лиги до её конца. С Ур. 400 — до 10 000 000 ⭐.</div>
+    <div id="skLimTbl" class="space-y-1.5 text-[11px]"></div>
+  </div>
+
+  <div class="card p-4">
+    <div class="text-xs font-bold mb-2.5" data-i="skTermL">Срок холда</div>
+    <div id="skPkgs" class="grid grid-cols-3 gap-2"></div>
+    <div class="mt-4 flex justify-between text-xs"><span class="text-neutral-400" data-i="skAmtL">Сумма холда (⭐)</span><span id="skRange" class="text-neutral-500 num"></span></div>
+    <div class="flex items-center gap-2 rounded-2xl bg-bg border border-line px-4 py-3 mt-1.5 focus-within:border-amber">
+      <input id="skIn" type="number" inputmode="numeric" min="0" placeholder="0" aria-label="Stake amount" class="bg-transparent flex-1 min-w-0 outline-none font-display text-2xl font-bold num">
+      <span class="text-gold">⭐</span>
+    </div>
+    <div id="skQuick" class="grid grid-cols-4 gap-2 mt-2"><button class="pre" data-q="50">+50</button><button class="pre" data-q="100">+100</button><button class="pre" data-q="500">+500</button><button class="pre" data-q="1000">+1000</button></div>
+    <div id="skPay" class="mt-3 rounded-xl bg-bg border border-line px-3 py-2.5 text-[12px] text-neutral-300 num"></div>
+    <div id="skWhy" class="text-xs text-bad min-h-[1rem] mt-2"></div>
+    <button id="skGo" class="cta w-full rounded-2xl py-4 font-display text-[13px] font-bold mt-1" data-i="skGo" disabled>Заморозить в холд</button>
+    <p class="text-[10px] text-neutral-500 mt-2 leading-snug text-center" data-i="skNote">Замороженные ⭐ засчитываются в холд и повышают уровень и скорость майнинга. Досрочно забрать нельзя.</p>
+  </div>
+
+  <div class="card p-4">
+    <div class="text-sm font-bold mb-3" data-i="skActive">Активные холды</div>
+    <div id="skList" class="space-y-2"></div>
+  </div>
+</section>
+
+<!-- ========== SHOP ========== -->
+<section id="v-shop" class="view space-y-3">
+  <div class="pt-2">
+    <h2 class="font-display text-lg font-bold" data-i="shopT">Магазин</h2>
+    <p class="text-xs text-neutral-400 mt-1" data-i="shopSub">Пополнение внутреннего холда в боте: сумма определяет ваш уровень</p>
+  </div>
+  <div class="card p-4 space-y-3">
+    <div class="flex justify-between text-xs"><span class="text-neutral-400" data-i="amtL">Сумма пополнения</span><span class="text-neutral-400"><span data-i="holdL">Холд</span>: <b class="text-neutral-200 num" id="shHold">0</b> ⭐</span></div>
+    <div class="flex items-center gap-2 rounded-2xl bg-bg border border-line px-4 py-3 focus-within:border-amber">
+      <input id="amt" type="number" inputmode="numeric" min="0" placeholder="0" aria-label="Stars" class="bg-transparent flex-1 min-w-0 outline-none font-display text-2xl font-bold num">
+      <span class="text-sm font-bold text-gold">⭐</span>
+    </div>
+    <div class="grid grid-cols-4 gap-2" id="presets">
+      <button class="pre" data-p="50">+50</button><button class="pre" data-p="100">+100</button><button class="pre" data-p="500">+500</button><button class="pre" data-p="1000">+1000</button>
+    </div>
+  </div>
+  <div class="card p-4">
+    <div class="text-xs text-neutral-400" data-i="youGet">Вы получите:</div>
+    <div class="flex items-baseline gap-2 mt-1 flex-wrap"><span id="pvLvl" class="font-display text-2xl font-bold text-gold"></span><span id="pvUp" class="text-xs font-bold text-ok"></span></div>
+    <div class="grid grid-cols-3 gap-2 mt-3 text-center">
+      <div class="rounded-xl bg-bg p-2.5"><div class="text-[10px] text-neutral-500" data-i="boost">Буст</div><div id="pvBoost" class="font-bold text-amber text-sm num"></div></div>
+      <div class="rounded-xl bg-bg p-2.5"><div class="text-[10px] text-neutral-500" data-i="cSpeed">Скорость</div><div id="pvSpeed" class="font-bold text-sm num"></div></div>
+      <div class="rounded-xl bg-bg p-2.5"><div class="text-[10px] text-neutral-500" data-i="cDaily">Доход</div><div id="pvDaily" class="font-bold text-ok text-sm num"></div></div>
+    </div>
+    <div id="pvDetail" class="mt-3 pt-3 border-t border-line text-xs text-neutral-400 space-y-1.5"></div>
+  </div>
+  <div class="card p-4 space-y-3">
+    <div class="flex items-center gap-3 rounded-xl bg-bg p-3"><span class="text-xl">⭐</span><div class="flex-1 min-w-0"><div class="text-sm font-bold" data-i="payStars">Telegram Stars</div><div class="text-[11px] text-neutral-500" data-i="payStarsD">Оплата с личного баланса Telegram</div></div><span class="w-2 h-2 rounded-full bg-ok"></span></div>
+    <button id="payBtn" class="cta w-full rounded-2xl py-4 font-display text-[13px] font-bold"></button>
+  </div>
+</section>
+
+<!-- ========== FRIENDS ========== -->
+<section id="v-friends" class="view space-y-3">
+  <div class="pt-2">
+    <h2 class="font-display text-lg font-bold" data-i="frT">Друзья</h2>
+    <p class="text-xs text-neutral-400 mt-1" data-i="frSub">Приглашай друзей — получай 5% от их сборов майнинга</p>
+  </div>
+  <div class="card p-4 flex gap-3 border-amber/30">
+    <svg class="shrink-0 mt-0.5" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+    <p id="frCond" class="text-xs text-neutral-300 leading-relaxed"></p>
+  </div>
+  <div class="grid grid-cols-2 gap-2.5">
+    <button id="frCopy" class="card py-4 flex items-center justify-center gap-2 font-bold text-sm">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 012-2h9"/></svg><span data-i="copy">Копировать</span>
+    </button>
+    <button id="frShare" class="cta rounded-[20px] py-4 flex items-center justify-center gap-2 font-bold text-sm">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg><span data-i="share">Поделиться</span>
+    </button>
+  </div>
+  <div class="card p-4 flex items-center gap-3">
+    <div class="flex-1 min-w-0"><div class="text-[11px] text-neutral-400" data-i="codeL">Ваш реферальный код</div><div id="frCode" class="font-display text-xl font-bold mt-1 num truncate"></div></div>
+    <span class="text-[11px] font-bold px-3 py-1.5 rounded-full bg-amber/15 text-amber border border-amber/30 whitespace-nowrap" data-i="pct5">5% со сбора</span>
+  </div>
+  <div class="grid grid-cols-2 gap-2.5">
+    <div class="card p-4"><div class="text-[11px] text-neutral-400" data-i="invited">Приглашено</div><div id="frCount" class="font-display text-2xl font-bold mt-1 num">0</div>
+      <div class="flex items-center gap-1.5 mt-1.5 text-xs"><span class="w-2 h-2 rounded-full bg-ok"></span><span id="frActive" class="text-ok font-semibold"></span></div></div>
+    <div class="card p-4"><div class="text-[11px] text-neutral-400" data-i="income">Доход</div><div class="font-display text-2xl font-bold mt-1 num text-ok">+<span id="frEarn">0.00</span> ⭐</div>
+      <div class="text-xs text-neutral-500 mt-1.5" data-i="earned">заработано</div></div>
+  </div>
+  <div class="flex items-center justify-between pt-1 px-1">
+    <h3 id="frListT" class="font-bold text-sm"></h3>
+    <button id="frAll" class="text-xs font-bold text-gold"></button>
+  </div>
+  <div id="frList" class="space-y-2"></div>
+</section>
+
+<!-- ========== WITHDRAW ========== -->
+<section id="v-withdraw" class="view space-y-3 relative isolate">
+  <div class="pt-2">
+    <h2 class="font-display text-lg font-bold" data-i="wTitle">Кошелёк и вывод</h2>
+    <p class="text-xs text-neutral-400 mt-1" data-i="wSub2">Управление балансом и вывод Telegram Stars</p>
+  </div>
+
+  <div class="card p-5 relative overflow-hidden" style="background:linear-gradient(160deg,#1d1a12,#1A1A1A 60%)">
+    <div class="flex items-center justify-between">
+      <div class="text-xs text-neutral-300 font-semibold" data-i="wBalT">Баланс в приложении</div>
+      <span class="text-[10px] font-bold px-2 py-1 rounded-full bg-ok/10 text-ok border border-ok/30" data-i="wBalS">Доступно для вывода</span>
+    </div>
+    <div class="font-display text-[36px] leading-none font-bold mt-3 num"><span id="wBal">0.00</span> <span class="text-gold">⭐</span></div>
+  </div>
+
+  <div class="grid grid-cols-2 gap-2.5">
+    <div class="card p-4 flex flex-col">
+      <div class="text-[11px] text-neutral-400 leading-tight" data-i="wHoldT">Внутренний холд в боте</div>
+      <div class="text-[10px] text-neutral-500" data-i="wHoldS">Влияет на уровень</div>
+      <div class="font-display text-xl font-bold mt-2 num text-gold"><span id="wHold">0</span> ⭐</div>
+      <div class="mt-2.5 text-[10px] leading-snug font-semibold text-amber bg-amber/10 border border-amber/25 rounded-lg px-2 py-1.5" data-i="wHoldB">Повышает уровень и скорость майнинга</div>
+    </div>
+    <div class="card p-4 flex flex-col">
+      <div class="text-[11px] text-neutral-400 leading-tight" data-i="wTotT">Всего выведено</div>
+      <div class="text-[10px] text-neutral-500" data-i="wTotS">Успешные выплаты</div>
+      <div class="font-display text-xl font-bold mt-2 num"><span id="wTot">0</span> ⭐</div>
+      <div class="mt-auto pt-2.5 text-[10px] text-neutral-500 leading-snug" id="wTotN"></div>
+    </div>
+  </div>
+
+  <div class="card p-4">
+    <div class="flex items-center gap-2 mb-3"><span class="text-base">📜</span><span class="text-sm font-bold" data-i="wRulesT">Правила и условия вывода</span></div>
+    <div class="space-y-2.5 text-[12px] leading-snug">
+      <div class="flex gap-2.5"><span class="w-7 h-7 shrink-0 rounded-lg bg-bg border border-line grid place-items-center">⏱</span><div><b class="text-neutral-100" data-i="wR1h">Частота</b><div class="text-neutral-400" data-i="wR1">1 вывод в 24 часа (обработка заявки: 1–24 ч)</div></div></div>
+      <div class="flex gap-2.5"><span class="w-7 h-7 shrink-0 rounded-lg bg-bg border border-line grid place-items-center">📉</span><div><b class="text-neutral-100" data-i="wR2h">Минимальная сумма</b><div class="text-neutral-400" data-i="wR2">от 700 Stars (⭐)</div></div></div>
+      <div class="flex gap-2.5"><span class="w-7 h-7 shrink-0 rounded-lg bg-bg border border-line grid place-items-center">🔄</span><div><b class="text-neutral-100" data-i="wR3h">Обязательный внутренний холд 25%</b><div class="text-neutral-400" data-i="wR3"></div></div></div>
+      <div class="flex gap-2.5"><span class="w-7 h-7 shrink-0 rounded-lg bg-bg border border-line grid place-items-center">🛡</span><div><b class="text-neutral-100" data-i="wR4h">Анти-бот правило</b><div class="text-neutral-400" data-i="wR4">Проверка активности аккаунта перед выводом.</div></div></div>
+    </div>
+  </div>
+
+  <div class="card p-4 space-y-3">
+    <div class="text-sm font-bold" data-i="wFormT">Заявка на вывод</div>
+    <div>
+      <div class="flex justify-between text-xs mb-1.5"><span class="text-neutral-400" data-i="wAmtL">Сумма для вывода (⭐)</span><span class="text-neutral-500" data-i="minL">минимум 700 ⭐</span></div>
+      <div class="flex items-center gap-2 rounded-2xl bg-bg border border-line px-4 py-3 focus-within:border-amber">
+        <input id="wAmt" type="number" inputmode="numeric" min="0" placeholder="700" aria-label="Withdraw" class="bg-transparent flex-1 min-w-0 outline-none font-display text-2xl font-bold num">
+        <button id="wMax" class="text-xs font-bold text-gold px-2.5 py-1.5 rounded-lg bg-[#242424] uppercase" data-i="max">Макс</button>
+      </div>
+      <div id="wHint" class="text-[11px] text-neutral-400 mt-2 leading-snug"></div>
+    </div>
+    <div id="wStat" class="rounded-xl border px-3 py-2.5 text-[12px] font-semibold"></div>
+    <div class="h-2 rounded-full bg-[#262626] overflow-hidden"><div id="wHB" class="h-full rounded-full transition-all duration-500" style="width:0%"></div></div>
+    <div id="wChecks" class="text-xs space-y-2"></div>
+    <div id="wEta" class="text-[11px] text-neutral-500 leading-relaxed"></div>
+    <div id="wWhy" class="text-xs text-bad min-h-[1rem]"></div>
+    <button id="wBtn" class="cta w-full rounded-2xl py-4 font-display text-[13px] font-bold" disabled data-i="wSubmit">Подать заявку на вывод</button>
+    <button id="wToShop" class="w-full rounded-2xl py-3 text-xs font-bold text-gold border border-line bg-bg hidden" data-i="toShop">Пополнить холд</button>
+  </div>
+
+  <div id="wHistBox" class="card p-4 hidden"><div class="text-xs font-bold mb-2" data-i="wHist">Заявки на вывод</div><div id="wHist" class="text-xs space-y-1.5 text-neutral-400"></div></div>
+</section>
+<!-- ========== ADMIN (виден только администратору) ========== -->
+<section id="v-admin" class="view space-y-3">
+  <div class="flex items-center justify-between pt-2">
+    <button id="aBack" class="h-9 px-3 rounded-xl card text-xs font-bold">‹ Назад</button>
+    <span id="aMode" class="text-[10px] font-bold text-neutral-400"></span>
+  </div>
+  <div><h2 class="font-display text-lg font-bold">Админ-панель</h2><p class="text-xs text-neutral-400 mt-1">Управление холдом, балансом и выводами</p></div>
+  <div class="card p-4 space-y-3">
+    <div class="text-xs font-bold">Пользователь</div>
+    <div class="flex gap-2"><input id="aId" type="text" inputmode="numeric" placeholder="Telegram ID" class="flex-1 min-w-0 bg-bg border border-line rounded-xl px-3 py-2.5 outline-none focus:border-amber num font-bold"><button id="aFind" class="cta rounded-xl px-4 text-xs font-bold">Найти</button></div>
+    <div id="aUser"></div>
+  </div>
+  <div class="card p-4 space-y-2.5">
+    <div class="text-xs font-bold">Внутренний холд ⭐</div>
+    <input id="aHold" type="number" inputmode="numeric" min="0" placeholder="Сумма" class="w-full bg-bg border border-line rounded-xl px-3 py-2.5 outline-none focus:border-amber num font-bold">
+    <div class="grid grid-cols-2 gap-2"><button id="aHoldAdd" class="cta rounded-xl py-3 text-xs font-bold">+ Добавить</button><button id="aHoldSub" class="rounded-xl py-3 text-xs font-bold border border-bad/40 text-bad bg-bad/10">− Списать</button></div>
+  </div>
+  <div class="card p-4 space-y-2.5">
+    <div class="text-xs font-bold">Доступный баланс ⭐</div>
+    <input id="aBal" type="number" inputmode="decimal" min="0" placeholder="Сумма" class="w-full bg-bg border border-line rounded-xl px-3 py-2.5 outline-none focus:border-amber num font-bold">
+    <div class="grid grid-cols-2 gap-2"><button id="aBalAdd" class="cta rounded-xl py-3 text-xs font-bold">+ Добавить</button><button id="aBalSub" class="rounded-xl py-3 text-xs font-bold border border-bad/40 text-bad bg-bad/10">− Списать</button></div>
+  </div>
+  <div class="card p-4">
+    <div class="flex items-center justify-between mb-2.5"><div class="text-xs font-bold">Заявки на вывод</div><button id="aRefresh" class="text-[11px] font-bold text-gold">Обновить</button></div>
+    <div id="aFilter" class="flex gap-2 mb-3"><button class="chip on" data-f="pending">Ожидают</button><button class="chip" data-f="approved">Одобрены</button><button class="chip" data-f="rejected">Отклонены</button><button class="chip" data-f="all">Все</button></div>
+    <div id="aWdList" class="space-y-2"></div>
+  </div>
+</section>
+</main>
+
+<!-- ========== MENU MODAL ========== -->
+<div id="menuModal" role="dialog" aria-modal="true" aria-labelledby="menuTitle">
+  <div class="bd" id="menuBd"></div>
+  <div class="sheet">
+    <div class="flex items-start justify-between gap-3 mb-4">
+      <div>
+        <h2 id="menuTitle" class="font-display text-[15px] font-bold tracking-wide" data-i="mTitle">РАЗДЕЛЫ ПЛАТФОРМЫ</h2>
+        <p class="text-xs text-neutral-400 mt-1" data-i="mSub">Сервисы и возможности</p>
+      </div>
+      <button id="menuClose" class="w-9 h-9 shrink-0 rounded-xl card grid place-items-center text-neutral-300" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="mgrid">
+      <button class="mcard" data-m="stake">
+        <span class="mbadge b-gold">+150%</span>
+        <span class="mico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v4c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 10v4c0 1.7 3.1 3 7 3s7-1.3 7-3v-4M5 14v4c0 1.7 3.1 3 7 3s7-1.3 7-3v-4"/></svg></span>
+        <span class="font-display text-[13px] font-bold mt-4" data-i="mstake">Стейкинг</span>
+        <span class="text-[12px] text-neutral-400 mt-1.5 leading-snug" data-i="mstakeD">Прибыль до +150%</span>
+      </button>
+      <button class="mcard" data-m="tasks">
+        <span class="mbadge b-new"><i></i>NEW</span>
+        <span class="mico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8l1.5 1.5L12 7M8 14l1.5 1.5L12 13M14.5 8.5H17M14.5 14.5H17"/></svg></span>
+        <span class="font-display text-[13px] font-bold mt-4" data-i="mtasks">Задания</span>
+        <span class="text-[12px] text-neutral-400 mt-1.5 leading-snug" data-i="mtasksD">Стрик и награды</span>
+      </button>
+      <button class="mcard" data-m="amb">
+        <span class="mbadge b-vip">VIP</span>
+        <span class="mico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/><path d="M5 19h14"/></svg></span>
+        <span class="font-display text-[13px] font-bold mt-4" data-i="mamb">Амбассадор</span>
+        <span class="text-[12px] text-neutral-400 mt-1.5 leading-snug" data-i="mambD">Партнерка до 25%</span>
+      </button>
+      <button class="mcard" data-m="up">
+        <span class="mbadge b-hot">HOT</span>
+        <span class="mico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V5M5.5 11.5L12 5l6.5 6.5M6 20h12"/></svg></span>
+        <span class="font-display text-[13px] font-bold mt-4" data-i="mup">Апгрейдер</span>
+        <span class="text-[12px] text-neutral-400 mt-1.5 leading-snug" data-i="mupD">Рискуй ⭐ и умножай баланс/холд</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== WELCOME LANGUAGE MODAL ========== -->
+<div id="welcome" class="out" role="dialog" aria-modal="true" aria-labelledby="wlT">
+  <div class="wcard">
+    <svg aria-hidden="true" class="absolute pointer-events-none" style="right:-90px;top:-70px;width:300px;height:300px;transform:rotate(14deg);filter:drop-shadow(0 0 30px rgba(245,158,11,.55))" viewBox="0 0 200 200"><polygon points="100,10 123,75 192,75 136,116 157,182 100,142 43,182 64,116 8,75 77,75" fill="#F59E0B" fill-opacity=".12" stroke="#FACC15" stroke-opacity=".35" stroke-width="1.2" stroke-linejoin="round"/></svg>
+    <div class="relative text-center">
+      <div class="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-gold to-amber grid place-items-center text-2xl text-black" style="box-shadow:0 0 28px rgba(245,158,11,.65)">⭐</div>
+      <h2 id="wlT" class="font-display text-[15px] font-bold leading-snug mt-4">Select your language / Выберите язык / Виберіть мову</h2>
+      <p class="text-xs text-gold font-semibold mt-2">Welcome to PulseStar Mining</p>
+    </div>
+    <div class="relative mt-5 space-y-2.5">
+      <button class="wbtn" data-wl="en"><span class="fl">🇬🇧</span>English</button>
+      <button class="wbtn" data-wl="ru"><span class="fl">🇷🇺</span>Русский</button>
+      <button class="wbtn" data-wl="uk"><span class="fl">🇺🇦</span>Українська</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-28 z-[60] card px-4 py-2 text-sm font-semibold opacity-0 pointer-events-none transition-opacity"></div>
+
+<nav id="nav" class="fixed inset-x-0 bottom-0 z-30 px-3 pointer-events-none" style="padding-bottom:calc(env(safe-area-inset-bottom) + 12px)">
+  <div id="dock" class="card pointer-events-auto max-w-md mx-auto grid grid-cols-5 items-center h-[68px] px-1">
+    <button class="tab on flex flex-col items-center gap-0.5" data-tab="mining"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4l6 6M9 9l-5 11 11-5M9 9l6-6 6 6-6 6z"/></svg><span class="text-[10px] font-semibold" data-i="nMining">Майнинг</span><i class="dot"></i></button>
+    <button class="tab flex flex-col items-center gap-0.5" data-tab="shop"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16l-1.5 12h-13zM8 7a4 4 0 018 0"/></svg><span class="text-[10px] font-semibold" data-i="nShop">Магазин</span><i class="dot"></i></button>
+    <button id="menuBtn" class="tab flex flex-col items-center gap-0.5" aria-label="Menu" aria-haspopup="dialog" aria-expanded="false"><span class="relative"><svg class="ico-grid" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg><svg class="ico-x" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span><span class="lbl text-[10px] font-semibold" data-i="nMenu">Меню</span><i class="dot"></i></button>
+    <button class="tab flex flex-col items-center gap-0.5" data-tab="friends"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5M17 5a3.5 3.5 0 010 7M21.5 20c0-2.5-1.5-4.2-3.5-5"/></svg><span class="text-[10px] font-semibold" data-i="nFriends">Друзья</span><i class="dot"></i></button>
+    <button class="tab flex flex-col items-center gap-0.5" data-tab="withdraw"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7a2 2 0 012-2h11v3"/><path d="M4 7v10a2 2 0 002 2h13a1 1 0 001-1V9a1 1 0 00-1-1H6a2 2 0 01-2-2"/><circle cx="16.5" cy="13.5" r="1"/></svg><span class="text-[10px] font-semibold" data-i="nWithdraw">Вывод</span><i class="dot"></i></button>
+    <button class="tab hidden flex flex-col items-center gap-0.5" data-tab="upgrader"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V5M5.5 11.5L12 5l6.5 6.5"/></svg><span class="text-[10px] font-semibold" data-i="mup">Апгрейдер</span><i class="dot"></i></button>
+    <button class="tab hidden flex flex-col items-center gap-0.5" data-tab="levels"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20v-6M12 20V5M19 20v-10M3 20h18"/></svg><span class="text-[10px] font-semibold" data-i="nLevels">Уровни</span><i class="dot"></i></button>
+    <button class="tab hidden" data-tab="tasks" aria-hidden="true"></button>
+    <button class="tab hidden" data-tab="stake" aria-hidden="true"></button>
+    <button class="tab hidden" data-tab="admin" aria-hidden="true"></button>
+  </div>
+</nav>
+
+<script>
+/* ================= Telegram ================= */
+const tg = window.Telegram && Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); try{ tg.setHeaderColor('#121212'); tg.setBackgroundColor('#121212'); }catch(e){} }
+const $ = id => document.getElementById(id);
+
+/* ================= Экономика =================
+   Ур.1 = 38.89 ⭐/сутки (≈1.62 ⭐/ч)  →  700 ⭐ копятся минимум 700/38.89 ≈ 18 дней.
+   Дальше доход = 38.89 × буст уровня; уровень определяется холдом (пополнение в Магазине). */
+const BASE_DAILY = 38.89, MAXLV = 500;
+const WD_MIN = 700, WD_HOLD_PCT = 0.25;              // вывод от 700 ⭐, холд 25% от суммы (175 ⭐ для 700)
+/* ЭКОНОМИКА УРОВНЕЙ (1–500) — масштабирована с оригинала под Telegram Stars.
+   boost = 1 + 2776.78·p^1.55,  hold = 10 000 000·p^2.45,  p = (level−1)/499.
+   Ур.1: холд 0 ⭐, 38.8989 ⭐/сутки (≈1.62 ⭐/ч) — 700 ⭐ за ≈18 дней. */
+function getLevelStats(level) {
+  // Базовые константы 1 уровня под условие 700 Stars за 18 дней:
+  const baseDaily = 38.8989; // Stars в день на Ур. 1
+  const baseHourly = baseDaily / 24; // ~1.6208 Stars в час
+
+  if (level === 1) {
+    return { level: 1, hold: 0, hourly: baseHourly, boost: 1.0, daily: baseDaily };
+  }
+
+  // Расчет коэффициента прогрессии от 1 до 500 уровня (пропорции оригинала):
+  const progress = (level - 1) / 499;
+
+  // Доход вычисляется по степени 1.55 (дает идентичный оригиналу переход)
+  const boost = 1 + (2776.78 * Math.pow(progress, 1.55));
+
+  // Необходимый холд вычисляется по пропорции (10 000 000 ⭐ на 500 ур):
+  const hold = Math.round(10000000 * Math.pow(progress, 2.45));
+
+  const daily = baseDaily * boost;
+  const hourly = daily / 24;
+
+  return {
+    level: level,
+    hold: hold,
+    hourly: Number(hourly.toFixed(1)),
+    boost: Number(boost.toFixed(1)),
+    daily: Math.round(daily)
+  };
+}
+const HOLD = [0], MULT = [0];                        // индекс = уровень; MULT в сотых
+for (let n = 1; n <= MAXLV; n++) { const st = getLevelStats(n); HOLD[n] = st.hold; MULT[n] = Math.round(st.boost * 100); }
+const roiDays = n => n > 1 ? HOLD[n] / (getLevelStats(n).daily - getLevelStats(1).daily) : 0;   // окупаемость прироста дохода, сут.
+const LEAGUES = [
+  { ru:'Бронзовая',  uk:'Бронзова', en:'Bronze',  icon:'🥉', bg:'#C98A4B,#7a4a1e' },
+  { ru:'Серебряная', uk:'Срібна', en:'Silver',    icon:'🥈', bg:'#D1D5DB,#6b7280' },
+  { ru:'Золотая',    uk:'Золота', en:'Gold',    icon:'🥇', bg:'#FACC15,#B07A00' },
+  { ru:'Платиновая', uk:'Платинова', en:'Platinum', icon:'💎', bg:'#7DD3FC,#1e5a8a' },
+  { ru:'Алмазная',   uk:'Алмазна', en:'Diamond',   icon:'👑', bg:'#C4B5FD,#5b3fb0' },
+];
+function levelByHold(h) { let lo = 1, hi = MAXLV; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (HOLD[m] <= h) lo = m; else hi = m - 1; } return lo; }
+function info(n) { const st = getLevelStats(n); return { n, hold:st.hold, m:MULT[n], daily:st.daily, speed:st.hourly, lg:Math.floor((n - 1) / 100) }; }
+const fmtN = n => Math.round(n).toLocaleString('ru-RU');
+const f2 = n => (+n).toFixed(2);
+const fmtC = n => n >= 1e6 ? (n / 1e6).toFixed(2).replace(/\.?0+$/, '') + 'M' : fmtN(n);
+const fmtM = m => m === 100 ? '×1.0' : m >= 10000 ? '×' + Math.round(m / 100) : m >= 1000 ? '×' + (m / 100).toFixed(1) : '×' + (m / 100).toFixed(2);
+
+/* ================= i18n ================= */
+const D = {
+ru:{tk_stake100T:'Открыть первый стейкинг (холд)',tk_stake100D:()=>'Создайте депозит во внутреннем холде на сумму от 100 ⭐ для разгона майнинга.',skLimit:'Лимит холда исчерпан. Повысьте уровень, чтобы увеличить лимит',skMinMsg:n=>`Минимальная сумма холда — ${n} ⭐`,skAll:'Все лимиты',skLimT:'Лимиты холда по лигам',skLimN:'Лимит растёт вместе с уровнем: от начала лиги до её конца. С Ур. 400 — до 10 000 000 ⭐.',skTitle:'Внутренний холд PulseStar',skSub:'Заморозка баланса для повышения уровня, буста и гарантированного процента',skBalL:'Доступно на балансе',skLeagueL:'Лига и уровень',skHoldT:(h,l)=>`В холде: ${h} / ${l} ⭐`,skTermL:'Срок холда',skDays:n=>`${n} дней`,skProfit:'прибыль',skAmtL:'Сумма холда (⭐)',skRange:(a,b)=>`Мин ${a} · Макс ${b} ⭐`,skPayT:(n,g)=>`К выплате по окончании: ${n} ⭐ (+${g} ⭐)`,skGo:'Заморозить в холд',skNote:'Замороженные ⭐ засчитываются в холд и повышают уровень и скорость майнинга. Досрочно забрать нельзя.',skActive:'Активные холды',skNone:'Нет активных холдов',skLeft:(d,h)=>`осталось ${d} д ${h} ч`,skTake:'Забрать',skReady:'Срок вышел — готово к выдаче',skFrozen:(n,d)=>`Заморожено ${n} ⭐ на ${d} дн.`,skTaken:n=>`На баланс: +${n} ⭐`,skNoBal:'Недостаточно ⭐ на балансе',skShop:'Магазин',tkSub:'Выполняй задания и получай ⭐ на баланс',tkAll:'Все задания',tkSoc:'Социальные',tkAch:'Достижения',tkNot:'Не выполнено',tkDo:'Выполнить',tkClaim:'Получить награду',tkDone:'Получено',tkProg:'Прогресс',tkGot:'Награда получена',tkEmpty:'Нет заданий',tk_inv3T:'Пригласить 3 активных друзей',tk_inv3D:n=>`Пригласите от 3 активных друзей (холд от Ур. 2 / от ${n}+ ⭐ в боте).`,tk_inv20T:'Пригласить 20 активных друзей',tk_inv20D:n=>`Пригласите от 20 активных друзей (холд от Ур. 2 / от ${n}+ ⭐ в боте).`,tk_inv100T:'Пригласить 100 активных друзей',tk_inv100D:n=>`Пригласите от 100 активных друзей (холд от Ур. 2 / от ${n}+ ⭐ в боте).`,tk_hold1T:'Открыть первый внутренний холд',tk_hold1D:()=>'Пополните баланс холда в боте через Telegram Stars для разгона майнинга.',tk_hold500T:'Сформировать холд 500 ⭐',tk_hold500D:()=>'Удерживайте в боте суммарно от 500 ⭐ для максимального буста дохода.',mshop:'Магазин',mshopD:'Пополнение холда ⭐',tLv:'Ур.',tHold:'Холд',tDay:'⭐/день',tBoost:'Буст',tRoi:'Окуп.',tRoiL:'Окупаемость холда',dShort:'д',roiHint:'Окуп. — за сколько суток дополнительный доход уровня покрывает холд.',lvRangeL:'Диапазон уровней',lvMe:'📍 Мой уровень',wTitle:'Кошелёк и вывод',wSub2:'Управление балансом и вывод Telegram Stars',wBalT:'Баланс в приложении',wBalS:'Доступно для вывода',wHoldT:'Внутренний холд в боте',wHoldS:'Влияет на уровень',wHoldB:'Повышает уровень и скорость майнинга',wTotT:'Всего выведено',wTotS:'Успешные выплаты',wCnt:'Заявок',wNone:'Пока нет выплат',wRulesT:'Правила и условия вывода',wR1h:'Частота',wR1:'1 вывод в 24 часа (обработка заявки: 1–24 ч)',wR2h:'Минимальная сумма',wR2:'от 700 Stars (⭐)',wR3h:'Обязательный внутренний холд 25%',wR3:'в боте нужно удерживать минимум 25% от суммы вывода (при выводе 700 ⭐ в холде должно быть от 175 ⭐). Кнопка блокируется, если холда недостаточно.',wR4h:'Анти-бот правило',wR4:'Проверка активности аккаунта перед выводом.',wFormT:'Заявка на вывод',wAmtL:'Сумма для вывода (⭐)',wSubmit:'Подать заявку на вывод',wHint:n=>`При вашем текущем холде вы можете вывести до ${fmtN(n)} Stars`,wStIdle:'Введите сумму, чтобы проверить холд',wStOk:(n,h)=>`Холда достаточно: нужно ${n} ⭐, в боте ${h} ⭐`,wStNo:(n,h)=>`Холда не хватает: нужно ${n} ⭐, в боте ${h} ⭐`,c4:'С последнего вывода прошло 24 часа',wCool:(h,m)=>`Следующий вывод доступен через ${h} ч ${m} мин`,wPend:'В обработке',mTitle:'РАЗДЕЛЫ ПЛАТФОРМЫ',mSub:'Сервисы и возможности',nMenu:'Меню',mstake:'Стейкинг',mstakeD:'Прибыль до +150%',mtasks:'Задания',mtasksD:'Стрик и награды',mamb:'Амбассадор',mambD:'Партнерка до 25%',mup:'Апгрейдер',mupD:'Рискуй ⭐ и умножай баланс/холд',upSub:'Рискуй ⭐ и умножай баланс или холд',upBet:'Ставка',upMult:'Множитель',upChance:'Шанс',upWin:'Выигрыш',upUnder:'Меньше',upOver:'Больше',upGo:'АПГРЕЙДИТЬ',upPayTo:'Выплата в',upBalT:'Баланс',upHoldT:'Холд',upBal:'Баланс',upHist:'Последние апгрейды',upOk:'Успешно',upBad:'Неудачно',upRisk:'Ставка сгорает при промахе. Шанс = 96 / множитель.',upSpin:'Вращение…',upNoBal:'Недостаточно ⭐ на балансе',upMin:'Минимальная ставка — 1 ⭐',upYou:'Вы',upWon:'ПОБЕДА',upLost:'ПРОМАХ',upZoneU:(a,b)=>`Победа, если выпадет ${a} – ${b}`,upXBad:'Множитель от 1.01 до 100',upToHold:'на холд',soon:'Скоро будет доступно',balance:'Баланс в приложении',holdL:'Холд в боте',active:'Активный майнинг',working:'Работает',toNext:'До следующего уровня',perHour:'В час',perDay:'В сутки',boost:'Буст',
+ holdInfo:'определяет уровень и доход',collect:'Собрать намайненное',rulesT:'Как это работает',
+ rules:'Ур. 1 майнит 38.89 ⭐ в сутки (~1.62 ⭐/ч): минимальные 700 ⭐ для вывода на нём копятся не быстрее 18 дней. Звёзды копятся сами до 24 часов без сбора. Всё пополнение учитывается только внутри бота как «Холд в боте»: он определяет уровень, скорость и доход. Вывод от 700 ⭐ при внутреннем холде 25% от суммы.',
+ nMining:'Майнинг',nFriends:'Друзья',frT:'Друзья',frSub:'Приглашай друзей — получай 5% от их сборов майнинга',copy:'Копировать',share:'Поделиться',codeL:'Ваш реферальный код',pct5:'5% со сбора',invited:'Приглашено',income:'Доход',earned:'заработано',
+ allBtn:'Все ›',collapse:'Свернуть ‹',emptyF:'Пока никого. Поделитесь ссылкой — награда начнёт приходить, когда друг станет активным.',fActive:'Активен',fInactive:'Не активен',friendN:'Друг',copiedL:'Ссылка скопирована',copyFail:'Не удалось скопировать',
+ shareTxt:'Присоединяйся к PulseStar и майни Telegram Stars ⭐',
+ actTxt:n=>`Условие активности: друг считается активным при внутреннем холде в боте от ${fmtN(n)} ⭐. Награда 5% начисляется строго в момент сбора наград активным другом.`,
+ actN:n=>`${n} активных`,listT:n=>`Список друзей (${n})`,fNeed:n=>`ещё ${fmtN(n)} ⭐ холда до активности`,refGot:n=>`+${n} ⭐ с реферала`,noActive:'Нет активных друзей',nLevels:'Уровни',nShop:'Магазин',nWithdraw:'Вывод',
+ lvTab:'Уровни',lvSub:'Система 500 уровней: чем больше холд, тем выше доход',status:'Ваш текущий статус',level:'Уровень',speedH:'Скорость ⭐/ч',calcL:'Рассчитать уровень:',cHold:'Необходимый холд',cDaily:'Суточный доход',cSpeed:'Скорость',toShop:'Пополнить холд',
+ all:'Все',more:'Показать ещё',lvl:'Ур.',league:'лига',here:'Вы здесь',day:'день',hr:'ч',
+ shopT:'Магазин',shopSub:'Пополнение внутреннего холда в боте: сумма определяет ваш уровень',amtL:'Сумма пополнения',youGet:'Вы получите:',payStars:'Telegram Stars',payStarsD:'Оплата с личного баланса Telegram · сразу идёт в холд майнера',statusT:'Статус майнера',holdBot:'Холд в боте',
+ wdT:'Вывод',wdSub:'От 700 ⭐ при внутреннем холде в боте 25% от суммы',avail:'Доступно к выводу',amtW:'Сумма вывода',minL:'минимум 700 ⭐',max:'Макс',wBtn:'Вывести',wHist:'Заявки на вывод',
+ c1:'Сумма вывода не меньше 700 ⭐',c2:'Баланс не меньше суммы вывода',c3:n=>`Внутренний холд не меньше 25% от суммы — ${fmtN(n)} ⭐`,
+ r1:'Минимальная сумма вывода — 700 ⭐',r2:'Недостаточно ⭐ на балансе',r3:(n,h)=>`Не хватает холда: нужно ${fmtN(n)} ⭐, у вас ${fmtN(h)} ⭐`,
+ eta:(d,n)=>`При Ур. ${n} до 700 ⭐ осталось ≈ ${d} дн. майнинга`,etaOk:'Минимальная сумма для вывода набрана',wdDone:'Заявка на вывод создана',wdFail:'Не удалось создать заявку',
+ need:(n,l)=>`Ещё ${fmtN(n)} ⭐ холда до Ур. ${l}`,max2:'Максимальный уровень',got:n=>`+${n} ⭐ на баланс`,nothing:'Пока нечего собирать',
+ debit:'Списание',newHold:'Холд после пополнения',toNextL:'До следующего уровня',viaTg:'Оплата через Telegram',
+ pay:'Оплатить',cancelled:'Платёж отменён',payFailed:'Оплата не прошла',pending:'Платёж обрабатывается',
+ noInvoice:'Счёт недоступен. Проверьте сервер',done:'Холдинг пополнен',enter:'Введите сумму',lvUp:'новый уровень'},
+uk:{tk_stake100T:'Відкрити перший стейкінг (холд)',tk_stake100D:()=>'Створіть депозит у внутрішньому холді на суму від 100 ⭐ для розгону майнінгу.',skLimit:'Ліміт холду вичерпано. Підвищте рівень, щоб збільшити ліміт',skMinMsg:n=>`Мінімальна сума холду — ${n} ⭐`,skAll:'Усі ліміти',skLimT:'Ліміти холду по лігах',skLimN:'Ліміт зростає разом з рівнем: від початку ліги до її кінця. З Рів. 400 — до 10 000 000 ⭐.',skTitle:'Внутрішній холд PulseStar',skSub:'Заморожування балансу для підвищення рівня, бусту і гарантованого відсотка',skBalL:'Доступно на балансі',skLeagueL:'Ліга і рівень',skHoldT:(h,l)=>`У холді: ${h} / ${l} ⭐`,skTermL:'Термін холду',skDays:n=>`${n} днів`,skProfit:'прибуток',skAmtL:'Сума холду (⭐)',skRange:(a,b)=>`Мін ${a} · Макс ${b} ⭐`,skPayT:(n,g)=>`До виплати наприкінці: ${n} ⭐ (+${g} ⭐)`,skGo:'Заморозити в холд',skNote:'Заморожені ⭐ зараховуються в холд і підвищують рівень та швидкість майнінгу. Достроково забрати не можна.',skActive:'Активні холди',skNone:'Немає активних холдів',skLeft:(d,h)=>`залишилось ${d} д ${h} г`,skTake:'Забрати',skReady:'Термін вийшов — готово до видачі',skFrozen:(n,d)=>`Заморожено ${n} ⭐ на ${d} дн.`,skTaken:n=>`На баланс: +${n} ⭐`,skNoBal:'Недостатньо ⭐ на балансі',skShop:'Магазин',tkSub:'Виконуй завдання та отримуй ⭐ на баланс',tkAll:'Усі завдання',tkSoc:'Соціальні',tkAch:'Досягнення',tkNot:'Не виконано',tkDo:'Виконати',tkClaim:'Отримати нагороду',tkDone:'Отримано',tkProg:'Прогрес',tkGot:'Нагороду отримано',tkEmpty:'Немає завдань',tk_inv3T:'Запросити 3 активних друзів',tk_inv3D:n=>`Запросіть від 3 активних друзів (холд від Рів. 2 / від ${n}+ ⭐ у боті).`,tk_inv20T:'Запросити 20 активних друзів',tk_inv20D:n=>`Запросіть від 20 активних друзів (холд від Рів. 2 / від ${n}+ ⭐ у боті).`,tk_inv100T:'Запросити 100 активних друзів',tk_inv100D:n=>`Запросіть від 100 активних друзів (холд від Рів. 2 / від ${n}+ ⭐ у боті).`,tk_hold1T:'Відкрити перший внутрішній холд',tk_hold1D:()=>'Поповніть баланс холду в боті через Telegram Stars для розгону майнінгу.',tk_hold500T:'Сформувати холд 500 ⭐',tk_hold500D:()=>'Утримуйте в боті загалом від 500 ⭐ для максимального бусту доходу.',mshop:'Магазин',mshopD:'Поповнення холду ⭐',tLv:'Рів.',tHold:'Холд',tDay:'⭐/день',tBoost:'Буст',tRoi:'Окуп.',tRoiL:'Окупність холду',dShort:'д',roiHint:'Окуп. — за скільки діб додатковий дохід рівня покриває холд.',lvRangeL:'Діапазон рівнів',lvMe:'📍 Мій рівень',wTitle:'Гаманець і вивід',wSub2:'Керування балансом і вивід Telegram Stars',wBalT:'Баланс у застосунку',wBalS:'Доступно для виводу',wHoldT:'Внутрішній холд у боті',wHoldS:'Впливає на рівень',wHoldB:'Підвищує рівень і швидкість майнінгу',wTotT:'Всього виведено',wTotS:'Успішні виплати',wCnt:'Заявок',wNone:'Поки немає виплат',wRulesT:'Правила та умови виводу',wR1h:'Частота',wR1:'1 вивід на 24 години (обробка заявки: 1–24 год)',wR2h:'Мінімальна сума',wR2:'від 700 Stars (⭐)',wR3h:'Обов’язковий внутрішній холд 25%',wR3:'у боті потрібно утримувати мінімум 25% від суми виводу (при виводі 700 ⭐ у холді має бути від 175 ⭐). Кнопка блокується, якщо холду недостатньо.',wR4h:'Анти-бот правило',wR4:'Перевірка активності акаунта перед виводом.',wFormT:'Заявка на вивід',wAmtL:'Сума для виводу (⭐)',wSubmit:'Подати заявку на вивід',wHint:n=>`При вашому поточному холді ви можете вивести до ${fmtN(n)} Stars`,wStIdle:'Введіть суму, щоб перевірити холд',wStOk:(n,h)=>`Холду достатньо: потрібно ${n} ⭐, у боті ${h} ⭐`,wStNo:(n,h)=>`Холду не вистачає: потрібно ${n} ⭐, у боті ${h} ⭐`,c4:'З останнього виводу минуло 24 години',wCool:(h,m)=>`Наступний вивід буде доступний через ${h} год ${m} хв`,wPend:'В обробці',mTitle:'РОЗДІЛИ ПЛАТФОРМИ',mSub:'Сервіси та можливості',nMenu:'Меню',mstake:'Стейкінг',mstakeD:'Прибуток до +150%',mtasks:'Завдання',mtasksD:'Стрік і нагороди',mamb:'Амбасадор',mambD:'Партнерка до 25%',mup:'Апгрейдер',mupD:'Ризикуй ⭐ і примножуй баланс/холд',upSub:'Ризикуй ⭐ і примножуй баланс або холд',upBet:'Ставка',upMult:'Множник',upChance:'Шанс',upWin:'Виграш',upUnder:'Менше',upOver:'Більше',upGo:'АПГРЕЙДИТИ',upPayTo:'Виплата в',upBalT:'Баланс',upHoldT:'Холд',upBal:'Баланс',upHist:'Останні апгрейди',upOk:'Успішно',upBad:'Невдало',upRisk:'Ставка згоряє при промаху. Шанс = 96 / множник.',upSpin:'Обертання…',upNoBal:'Недостатньо ⭐ на балансі',upMin:'Мінімальна ставка — 1 ⭐',upYou:'Ви',upWon:'ПЕРЕМОГА',upLost:'ПРОМАХ',upZoneU:(a,b)=>`Перемога, якщо випаде ${a} – ${b}`,upXBad:'Множник від 1.01 до 100',upToHold:'у холд',soon:'Скоро буде доступно',balance:'Баланс у застосунку',holdL:'Холд у боті',active:'Активний майнінг',working:'Працює',toNext:'До наступного рівня',perHour:'За годину',perDay:'За добу',boost:'Буст',
+ holdInfo:'визначає рівень і дохід',collect:'Зібрати намайнене',rulesT:'Як це працює',
+ rules:'Рів. 1 майнить 38.89 ⭐ на добу (~1.62 ⭐/г): мінімальні 700 ⭐ для виводу на ньому накопичуються не швидше ніж за 18 днів. Зірки накопичуються самі до 24 годин без збору. Усе поповнення враховується лише всередині бота як «Холд у боті»: він визначає рівень, швидкість і дохід. Вивід від 700 ⭐ при внутрішньому холді 25% від суми.',
+ nMining:'Майнінг',nFriends:'Друзі',frT:'Друзі',frSub:'Запрошуй друзів — отримуй 5% від їхніх зборів майнінгу',copy:'Копіювати',share:'Поділитися',codeL:'Ваш реферальний код',pct5:'5% зі збору',invited:'Запрошено',income:'Дохід',earned:'зароблено',
+ allBtn:'Усі ›',collapse:'Згорнути ‹',emptyF:'Поки нікого. Поділіться посиланням — нагорода почне надходити, коли друг стане активним.',fActive:'Активний',fInactive:'Неактивний',friendN:'Друг',copiedL:'Посилання скопійовано',copyFail:'Не вдалося скопіювати',
+ shareTxt:'Приєднуйся до PulseStar і майни Telegram Stars ⭐',
+ actTxt:n=>`Умова активності: друг вважається активним при внутрішньому холді в боті від ${fmtN(n)} ⭐. Нагорода 5% нараховується строго в момент збору нагород активним другом.`,
+ actN:n=>`${n} активних`,listT:n=>`Список друзів (${n})`,fNeed:n=>`ще ${fmtN(n)} ⭐ холду до активності`,refGot:n=>`+${n} ⭐ з реферала`,noActive:'Немає активних друзів',nLevels:'Рівні',nShop:'Магазин',nWithdraw:'Вивід',
+ lvTab:'Рівні',lvSub:'Система 500 рівнів: чим більший холд, тим вищий дохід',status:'Ваш поточний статус',level:'Рівень',speedH:'Швидкість ⭐/г',calcL:'Розрахувати рівень:',cHold:'Потрібний холд',cDaily:'Добовий дохід',cSpeed:'Швидкість',toShop:'Поповнити холд',
+ all:'Усі',more:'Показати ще',lvl:'Рів.',league:'ліга',here:'Ви тут',day:'день',hr:'г',
+ shopT:'Магазин',shopSub:'Поповнення внутрішнього холду в боті: сума визначає ваш рівень',amtL:'Сума поповнення',youGet:'Ви отримаєте:',payStars:'Telegram Stars',payStarsD:'Оплата з особистого балансу Telegram · одразу йде в холд майнера',statusT:'Статус майнера',holdBot:'Холд у боті',
+ wdT:'Вивід',wdSub:'Від 700 ⭐ при внутрішньому холді в боті 25% від суми',avail:'Доступно до виводу',amtW:'Сума виводу',minL:'мінімум 700 ⭐',max:'Макс',wBtn:'Вивести',wHist:'Заявки на вивід',
+ c1:'Сума виводу не менша за 700 ⭐',c2:'Баланс не менший за суму виводу',c3:n=>`Внутрішній холд не менший за 25% від суми — ${fmtN(n)} ⭐`,
+ r1:'Мінімальна сума виводу — 700 ⭐',r2:'Недостатньо ⭐ на балансі',r3:(n,h)=>`Не вистачає холду: потрібно ${fmtN(n)} ⭐, у вас ${fmtN(h)} ⭐`,
+ eta:(d,n)=>`На Рів. ${n} до 700 ⭐ лишилось ≈ ${d} дн. майнінгу`,etaOk:'Мінімальну суму для виводу набрано',wdDone:'Заявку на вивід створено',wdFail:'Не вдалося створити заявку',
+ need:(n,l)=>`Ще ${fmtN(n)} ⭐ холду до Рів. ${l}`,max2:'Максимальний рівень',got:n=>`+${n} ⭐ на баланс`,nothing:'Поки нічого збирати',
+ debit:'Списання',newHold:'Холд після поповнення',toNextL:'До наступного рівня',viaTg:'Оплата через Telegram',
+ pay:'Сплатити',cancelled:'Платіж скасовано',payFailed:'Оплата не пройшла',pending:'Платіж обробляється',
+ noInvoice:'Рахунок недоступний. Перевірте сервер',done:'Холдинг поповнено',enter:'Введіть суму',lvUp:'новий рівень'},
+en:{
+skLimit:'Hold limit reached. Level up to increase your limit',skMinMsg:n=>`Minimum hold amount is ${n} ⭐`,skAll:'All limits',skLimT:'Hold limits by league',skLimN:'The limit grows with your level, from the start of a league to its end. From Lv. 400: up to 10,000,000 ⭐.',skTitle:'PulseStar Internal Hold',skSub:'Freeze your balance to level up, boost mining and earn a guaranteed percentage',skBalL:'Available balance',skLeagueL:'League & level',skHoldT:(h,l)=>`In hold: ${h} / ${l} ⭐`,skTermL:'Hold term',skDays:n=>`${n} days`,skProfit:'profit',skAmtL:'Hold amount (⭐)',skRange:(a,b)=>`Min ${a} · Max ${b} ⭐`,skPayT:(n,g)=>`Payout at maturity: ${n} ⭐ (+${g} ⭐)`,skGo:'Freeze in hold',skNote:'Frozen ⭐ count towards your hold and raise your level and mining speed. Early withdrawal is not possible.',skActive:'Active holds',skNone:'No active holds',skLeft:(d,h)=>`${d} d ${h} h left`,skTake:'Claim',skReady:'Term complete — ready to claim',skFrozen:(n,d)=>`Frozen ${n} ⭐ for ${d} days`,skTaken:n=>`Added to balance: +${n} ⭐`,skNoBal:'Not enough ⭐ on balance',skShop:'Shop',
+tkSub:'Complete tasks and get ⭐ on your balance',tkAll:'All tasks',tkSoc:'Social',tkAch:'Achievements',tkNot:'Not completed',tkDo:'Complete',tkClaim:'Claim reward',tkDone:'Claimed',tkProg:'Progress',tkGot:'Reward claimed',tkEmpty:'No tasks',tk_inv3T:'Invite 3 active friends',tk_inv3D:n=>`Invite 3 or more active friends (hold from Lv. 2 / from ${n}+ ⭐ in the bot).`,tk_inv20T:'Invite 20 active friends',tk_inv20D:n=>`Invite 20 or more active friends (hold from Lv. 2 / from ${n}+ ⭐ in the bot).`,tk_inv100T:'Invite 100 active friends',tk_inv100D:n=>`Invite 100 or more active friends (hold from Lv. 2 / from ${n}+ ⭐ in the bot).`,tk_stake100T:'Open your first staking (hold)',tk_stake100D:()=>'Create a deposit in the internal hold of 100 ⭐ or more to speed up mining.',tk_hold500T:'Build a 500 ⭐ hold',tk_hold500D:()=>'Keep at least 500 ⭐ in the bot in total for the maximum income boost.',
+mshop:'Shop',mshopD:'Top up hold ⭐',tLv:'Lv.',tHold:'Hold',tDay:'⭐/day',tBoost:'Boost',tRoi:'Payback',tRoiL:'Hold payback',dShort:'d',roiHint:'Payback — how many days the level’s extra income takes to cover the hold.',lvRangeL:'Level range',lvMe:'📍 My level',
+wTitle:'Wallet & withdrawal',wSub2:'Manage your balance and withdraw Telegram Stars',wBalT:'In-app balance',wBalS:'Available to withdraw',wHoldT:'Internal hold in the bot',wHoldS:'Affects your level',wHoldB:'Raises your level and mining speed',wTotT:'Total withdrawn',wTotS:'Successful payouts',wCnt:'Requests',wNone:'No payouts yet',wRulesT:'Withdrawal rules',wR1h:'Frequency',wR1:'1 withdrawal per 24 hours (processing: 1–24 h)',wR2h:'Minimum amount',wR2:'from 700 Stars (⭐)',wR3h:'Mandatory internal hold 25%',wR3:'you must keep at least 25% of the withdrawal amount in the bot (to withdraw 700 ⭐ you need 175 ⭐ in hold). The button is locked if the hold is insufficient.',wR4h:'Anti-bot rule',wR4:'Account activity is checked before withdrawal.',wFormT:'Withdrawal request',wAmtL:'Withdrawal amount (⭐)',wSubmit:'Submit withdrawal request',wHint:n=>`With your current hold you can withdraw up to ${fmtN(n)} Stars`,wStIdle:'Enter an amount to check your hold',wStOk:(n,h)=>`Hold is sufficient: ${n} ⭐ required, ${h} ⭐ in the bot`,wStNo:(n,h)=>`Hold is too low: ${n} ⭐ required, ${h} ⭐ in the bot`,c4:'24 hours have passed since the last withdrawal',wCool:(h,m)=>`Next withdrawal available in ${h} h ${m} min`,wPend:'Processing',
+mTitle:'PLATFORM SECTIONS',mSub:'Services and features',nMenu:'Menu',mstake:'Staking',mstakeD:'Profit up to +150%',mtasks:'Tasks',mtasksD:'Streak and rewards',mamb:'Ambassador',mambD:'Affiliate up to 25%',mup:'Upgrader',mupD:'Risk ⭐ and multiply balance/hold',
+upSub:'Risk ⭐ and multiply your balance or hold',upBet:'Bet',upMult:'Multiplier',upChance:'Chance',upWin:'Win',upUnder:'Under',upOver:'Over',upGo:'UPGRADE',upPayTo:'Payout to',upBalT:'Balance',upHoldT:'Hold',upBal:'Balance',upHist:'Recent upgrades',upOk:'Success',upBad:'Failed',upRisk:'Your bet burns on a miss. Chance = 96 / multiplier.',upSpin:'Spinning…',upNoBal:'Not enough ⭐ on balance',upMin:'Minimum bet is 1 ⭐',upYou:'You',upWon:'WIN',upLost:'MISS',upZoneU:(a,b)=>`You win if the roll is ${a} – ${b}`,upXBad:'Multiplier from 1.01 to 100',upToHold:'to hold',soon:'Coming soon',
+balance:'In-app balance',holdL:'Hold in bot',active:'Active mining',working:'Working',toNext:'To next level',perHour:'Per hour',perDay:'Per day',boost:'Boost',holdInfo:'determines level and income',collect:'Collect mined',rulesT:'How it works',
+rules:'Lv. 1 mines 38.89 ⭐ per day (~1.62 ⭐/h): the 700 ⭐ minimum for withdrawal takes at least 18 days there. Stars accumulate on their own for up to 24 hours without collecting. All top-ups count only inside the bot as “Hold in bot”: it determines your level, speed and income. Withdrawal from 700 ⭐ with an internal hold of 25% of the amount.',
+nMining:'Mining',nFriends:'Friends',frT:'Friends',frSub:'Invite friends and get 5% of their mining collections',copy:'Copy',share:'Share',codeL:'Your referral code',pct5:'5% of collection',invited:'Invited',income:'Income',earned:'earned',allBtn:'All ›',collapse:'Collapse ‹',emptyF:'No one yet. Share your link — rewards start once a friend becomes active.',fActive:'Active',fInactive:'Inactive',friendN:'Friend',copiedL:'Link copied',copyFail:'Could not copy',shareTxt:'Join PulseStar and mine Telegram Stars ⭐',
+actTxt:n=>`Activity condition: a friend is considered active with an internal hold in the bot of ${fmtN(n)} ⭐ or more. The 5% reward is credited strictly when the active friend collects their rewards.`,actN:n=>`${n} active`,listT:n=>`Friends list (${n})`,fNeed:n=>`${fmtN(n)} ⭐ more hold to become active`,refGot:n=>`+${n} ⭐ from referral`,noActive:'No active friends',nLevels:'Levels',nShop:'Shop',nWithdraw:'Withdraw',
+lvTab:'Levels',lvSub:'500-level system: the bigger the hold, the higher the income',status:'Your current status',level:'Level',speedH:'Speed ⭐/h',calcL:'Calculate level:',cHold:'Required hold',cDaily:'Daily income',cSpeed:'Speed',toShop:'Top up hold',all:'All',more:'Show more',lvl:'Lv.',league:'league',here:'You are here',day:'day',hr:'h',
+shopT:'Shop',shopSub:'Top up your internal hold in the bot: the amount determines your level',amtL:'Top-up amount',youGet:'You get:',payStars:'Telegram Stars',payStarsD:'Pay from your Telegram balance · goes straight into the miner hold',statusT:'Miner status',holdBot:'Hold in bot',
+wdT:'Withdraw',wdSub:'From 700 ⭐ with an internal hold of 25% of the amount',avail:'Available to withdraw',amtW:'Withdrawal amount',minL:'minimum 700 ⭐',max:'Max',wBtn:'Withdraw',wHist:'Withdrawal requests',
+c1:'Withdrawal amount is at least 700 ⭐',c2:'Balance is at least the withdrawal amount',c3:n=>`Internal hold is at least 25% of the amount — ${fmtN(n)} ⭐`,r1:'Minimum withdrawal is 700 ⭐',r2:'Not enough ⭐ on balance',r3:(n,h)=>`Not enough hold: ${fmtN(n)} ⭐ required, you have ${fmtN(h)} ⭐`,
+eta:(d,n)=>`At Lv. ${n} about ${d} days of mining left to reach 700 ⭐`,etaOk:'Minimum withdrawal amount reached',wdDone:'Withdrawal request created',wdFail:'Could not create the request',need:(n,l)=>`${fmtN(n)} ⭐ more hold to Lv. ${l}`,max2:'Maximum level',got:n=>`+${n} ⭐ to balance`,nothing:'Nothing to collect yet',
+debit:'Debit',newHold:'Hold after top-up',toNextL:'To next level',viaTg:'Pay via Telegram',pay:'Pay',cancelled:'Payment cancelled',payFailed:'Payment failed',pending:'Payment is processing',noInvoice:'Invoice unavailable. Check the server',done:'Hold topped up',enter:'Enter an amount',lvUp:'new level',
+wlTitle:'Select your language / Выберите язык / Виберіть мову'}
+};
+
+/* ================= State ================= */
+const KEY = 'pulsestar_v1';
+const fresh = () => ({ maxStake:0, stakes:[], tasksDone:{}, holdBought:false, wdTotal:0, balance:0, hold:0, last:Date.now(), lang:'ru', wd:[], friends:[], refEarned:0 });
+let S;
+try { S = Object.assign(fresh(), JSON.parse(localStorage.getItem(KEY) || localStorage.getItem('starvault_v3') || '{}')); } catch(e){ S = fresh(); }
+const save = () => { try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} };
+const t = k => { const v = D[S.lang][k]; return v !== undefined ? v : D.ru[k]; };
+const curLvl = () => levelByHold(S.hold);
+const CAP_MS = 24 * 3600 * 1000;
+const pending = () => Math.min(Date.now() - S.last, CAP_MS) * info(curLvl()).daily / 86400000;
+let shown = 0;
+const settle = () => { S.balance += pending(); S.last = Date.now(); shown = 0; };   // фиксируем намайненное перед сменой уровня
+function toast(msg) { const el = $('toast'); el.textContent = msg; el.style.opacity = 1; clearTimeout(toast.t); toast.t = setTimeout(() => el.style.opacity = 0, 2000); }
+const go = name => document.querySelector(`[data-tab="${name}"]`).click();
+
+/* ================= Майнинг ================= */
+function renderStatic() {
+  syncMyWd();
+  const L = info(curLvl()), nx = L.n < MAXLV ? info(L.n + 1) : null, lg = LEAGUES[L.lg];
+  $('bal').textContent = f2(S.balance);
+  $('hdrLvl').textContent = `${t('lvl')} ${L.n}`; $('lvlTxt').textContent = `${t('lvl')} ${L.n}`;
+  $('league').textContent = `${lg[S.lang]} ${t('league')}`;
+  $('leagueIcon').textContent = lg.icon; $('leagueIcon').style.background = `linear-gradient(135deg,${lg.bg})`;
+  $('holdTxt').textContent = fmtN(S.hold); $('shHold').textContent = fmtN(S.hold);
+  $('sDay').textContent = f2(L.daily); $('sHour').textContent = f2(L.speed); $('sBoost').textContent = fmtM(L.m);
+  $('mStLvl').textContent = L.n; $('mStSpeed').textContent = f2(L.speed); $('mStHold').textContent = fmtN(S.hold) + ' ⭐';
+  $('stLvl').textContent = L.n; $('stSpeed').textContent = f2(L.speed); $('stBoost').textContent = fmtM(L.m);
+  if (nx) {
+    const p = Math.max(0, Math.min(100, (S.hold - L.hold) / (nx.hold - L.hold) * 100));
+    $('pct').textContent = Math.floor(p) + '%'; $('bar').style.width = p + '%'; $('need').textContent = t('need')(nx.hold - S.hold, nx.n);
+  } else { $('pct').textContent = '100%'; $('bar').style.width = '100%'; $('need').textContent = t('max2'); }
+  renderWd();
+}
+function tick() {
+  const target = pending();
+  shown += (target - shown) * 0.25; if (Math.abs(target - shown) < 1e-5) shown = target;
+  $('mined').textContent = shown.toFixed(4);
+  requestAnimationFrame(tick);
+}
+$('collect').onclick = () => {
+  const amt = pending();
+  if (amt < 0.01) return toast(t('nothing'));
+  S.balance += amt; S.last = Date.now(); shown = 0; save(); renderStatic();
+  $('bal').classList.remove('bump'); void $('bal').offsetWidth; $('bal').classList.add('bump');
+  toast(t('got')(amt.toFixed(2)));
+  if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+};
+
+/* ================= Уровни ================= */
+const RANGES = [[1,500],[1,100],[101,200],[201,300],[301,400],[401,500]];
+let rngIdx = 1, shownCount = 100;
+const PAGE = 60;
+function renderCalc(n) {
+  n = Math.max(1, Math.min(MAXLV, Math.round(n) || 1)); const I = info(n);
+  $('cLvl').value = n; $('cRange').value = n;
+  $('rHold').textContent = `${fmtN(I.hold)} ⭐`;
+  $('rDaily').textContent = `~${f2(I.daily)} ⭐ / ${t('day')}`;
+  $('rSpeed').textContent = `${f2(I.speed)} ⭐/${t('hr')}`;
+  $('rBoost').textContent = `${fmtM(I.m)} (${LEAGUES[I.lg][S.lang]})`;
+  $('rRoi').textContent = n > 1 ? `≈ ${roiDays(n) < 1 ? '<1' : Math.round(roiDays(n))} ${t('dShort')}` : '—';
+}
+function renderLevels() {
+  const me = curLvl(), [a, b] = RANGES[rngIdx], total = b - a + 1, count = Math.min(total, shownCount);
+  $('rangeChips').innerHTML = RANGES.map((r, i) => `<button class="chip ${i === rngIdx ? 'on' : ''}" data-r="${i}">${i === 0 ? t('all') : r[0] + '–' + r[1]}</button>`).join('');
+  $('lvRangeTxt').textContent = rngIdx === 0 ? `1–${Math.min(b, a + count - 1)} / ${MAXLV}` : `${a}–${b}`;
+  let h = '';
+  for (let n = a; n < a + count; n++) {
+    const I = info(n), cur = n === me, lg = LEAGUES[I.lg], roi = roiDays(n);
+    h += `<button data-n="${n}" class="w-full grid items-center gap-1 px-3 py-2 text-[11px] text-left border-b border-line/60 num ${cur ? 'bg-amber/10' : n % 2 ? 'bg-transparent' : 'bg-white/[0.015]'}" style="grid-template-columns:40px 1fr 1fr 52px 44px">
+      <span class="font-display font-bold ${cur ? 'text-amber' : 'text-gold'}" title="${lg[S.lang]}">${n}</span>
+      <span class="text-right text-neutral-200">${fmtN(I.hold)}</span>
+      <span class="text-right text-ok font-bold">${f2(I.daily)}</span>
+      <span class="text-right text-neutral-400">${fmtM(I.m)}</span>
+      <span class="text-right text-neutral-500">${n > 1 ? (roi < 1 ? '<1' : Math.round(roi)) + t('dShort') : '—'}</span></button>`;
+  }
+  $('lvList').innerHTML = h; $('lvMore').classList.toggle('hidden', count >= total);
+}
+$('rangeChips').onclick = e => { const b = e.target.closest('[data-r]'); if (!b) return; rngIdx = +b.dataset.r; shownCount = rngIdx === 0 ? PAGE : 100; renderLevels(); $('lvScroll').scrollTop = 0; };
+$('lvList').onclick = e => { const b = e.target.closest('[data-n]'); if (!b) return; renderCalc(+b.dataset.n); $('cLvl').scrollIntoView({ behavior:'smooth', block:'center' }); };
+$('lvMore').onclick = () => { shownCount += PAGE; renderLevels(); };
+$('lvScroll').addEventListener('scroll', e => { const el = e.target; if (rngIdx === 0 && el.scrollTop + el.clientHeight > el.scrollHeight - 200 && !$('lvMore').classList.contains('hidden')) { shownCount += PAGE; renderLevels(); } }, { passive:true });
+$('lvMe').onclick = () => {
+  const me = curLvl(); rngIdx = Math.ceil(me / 100); shownCount = 100; renderLevels();
+  const el = $('lvList').querySelector(`[data-n="${me}"]`); if (el) $('lvScroll').scrollTop = Math.max(0, el.offsetTop - 4);
+};
+$('cLvl').oninput = e => renderCalc(e.target.value); $('cRange').oninput = e => renderCalc(e.target.value);
+$('cMinus').onclick = () => renderCalc(+$('cLvl').value - 1); $('cPlus').onclick = () => renderCalc(+$('cLvl').value + 1);
+$('toShop').onclick = () => go('shop');
+$('hdrLvlBtn').onclick = $('leagueCard').onclick = () => go('levels');
+
+/* ================= Магазин: пополнение внутреннего холда ================= */
+const API_URL = '/api';                // POST /api/create-invoice {amount, initData} -> {link};  POST /api/withdraw {amount, initData}
+let amt = 0;
+const row = (a, b, c = '') => `<div class="flex justify-between gap-3"><span>${a}</span><span class="num ${c}">${b}</span></div>`;
+function renderShop() {
+  const cur = info(curLvl()), nh = S.hold + amt, nl = info(levelByHold(nh));
+  $('pvLvl').textContent = `${t('lvl')} ${nl.n}`;
+  $('pvUp').textContent = nl.n > cur.n ? `▲ ${t('lvUp')} (+${nl.n - cur.n})` : '';
+  $('pvBoost').textContent = fmtM(nl.m); $('pvSpeed').textContent = `${f2(nl.speed)}/${t('hr')}`; $('pvDaily').textContent = `+${f2(nl.daily)}`;
+  $('pvDetail').innerHTML = row(t('newHold'), `${fmtN(nh)} ⭐`, 'text-neutral-200')
+    + (nl.n < MAXLV ? row(t('toNextL'), `${fmtN(HOLD[nl.n + 1] - nh)} ⭐`) : row(t('toNextL'), t('max2')))
+    + row(t('debit'), `${fmtN(amt)} ⭐ Stars`) + row(t('viaTg'), 'Telegram', 'text-neutral-200');
+  $('payBtn').textContent = `${t('pay')} ${fmtN(amt)} ⭐`; $('payBtn').disabled = amt < 1;
+}
+function applyTopUp(a) {            // сумма сразу фиксируется как «Холд в боте»
+  const before = curLvl(); settle(); S.hold += a; S.holdBought = true; save(); renderStatic(); renderShop();
+  toast(curLvl() > before ? `🎉 ${t('lvl')} ${curLvl()}` : t('done'));
+  if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+}
+async function api(path, body) {
+  const r = await fetch(API_URL + path, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ ...body, initData: tg ? tg.initData : '' }) });
+  if (!r.ok) throw new Error(path); return r.json();
+}
+$('amt').oninput = e => { const v = Math.floor(+e.target.value); amt = isFinite(v) && v > 0 ? Math.min(v, 1e9) : 0; renderShop(); };
+$('presets').onclick = e => { const b = e.target.closest('[data-p]'); if (!b) return; amt = Math.min(amt + +b.dataset.p, 1e9); $('amt').value = amt; renderShop(); };
+$('payBtn').onclick = async () => {
+  if (amt < 1) return toast(t('enter')); const a = amt;
+  try {
+    if (!tg || !tg.openInvoice) throw new Error('no-tg');
+    const { link } = await api('/create-invoice', { amount:a });
+    tg.openInvoice(link, st => {   // 'paid' | 'cancelled' | 'failed' | 'pending'
+      if (st === 'paid') applyTopUp(a);   // продакшен: холд зачисляет бэкенд по successful_payment
+      else if (st === 'pending') toast(t('pending'));
+      else toast(st === 'failed' ? t('payFailed') : t('cancelled'));
+    });
+  } catch (e) { toast(t('noInvoice')); }
+};
+
+/* ================= Вывод ================= */
+let wd = 0;
+const DAY_MS = 86400000;
+const wdMax = () => Math.max(0, Math.min(Math.floor(S.balance), Math.floor(S.hold / WD_HOLD_PCT)));
+const wdCool = () => { const x = S.wd.find(w => w.status !== 'rejected'); return x ? Math.max(0, x.ts + DAY_MS - Date.now()) : 0; };
+function renderWd() {
+  const reqHold = Math.ceil(Math.max(wd, WD_MIN) * WD_HOLD_PCT), cool = wdCool();
+  const c1 = wd >= WD_MIN, c2 = wd > 0 && S.balance >= wd, c3 = S.hold >= reqHold, c4 = cool === 0;
+  $('wBal').textContent = f2(S.balance); $('wHold').textContent = fmtN(S.hold);
+  const tot = S.wdTotal || 0;
+  $('wTot').textContent = fmtN(tot); $('wTotN').textContent = S.wd.length ? `${t('wCnt')}: ${S.wd.length}` : t('wNone');
+  $('wHint').textContent = t('wHint')(wdMax());
+  const st = $('wStat');
+  if (!wd) { st.className = 'rounded-xl border px-3 py-2.5 text-[12px] font-semibold border-line bg-bg text-neutral-400'; st.textContent = t('wStIdle'); }
+  else if (c3) { st.className = 'rounded-xl border px-3 py-2.5 text-[12px] font-semibold border-ok/40 bg-ok/10 text-ok'; st.textContent = '✓ ' + t('wStOk')(fmtN(reqHold), fmtN(S.hold)); }
+  else { st.className = 'rounded-xl border px-3 py-2.5 text-[12px] font-semibold border-bad/40 bg-bad/10 text-bad'; st.textContent = '✕ ' + t('wStNo')(fmtN(reqHold), fmtN(S.hold)); }
+  const cov = wd ? Math.min(100, S.hold / reqHold * 100) : 0;
+  $('wHB').style.width = cov + '%'; $('wHB').style.background = c3 ? 'linear-gradient(90deg,#34D27B,#86efac)' : 'linear-gradient(90deg,#F87171,#F59E0B)';
+  const chk = (ok, txt) => `<div class="flex items-start gap-2"><span class="${ok ? 'text-ok' : 'text-neutral-600'} font-bold">${ok ? '✓' : '○'}</span><span class="${ok ? 'text-neutral-200' : 'text-neutral-400'}">${txt}</span></div>`;
+  $('wChecks').innerHTML = chk(c1, t('c1')) + chk(c2, t('c2')) + chk(c3, t('c3')(reqHold)) + chk(c4, t('c4'));
+  const daily = info(curLvl()).daily, left = Math.max(0, WD_MIN - S.balance);
+  $('wEta').textContent = left > 0 ? t('eta')((Math.ceil(left / daily * 10) / 10).toString(), curLvl()) : t('etaOk');
+  $('wBtn').disabled = !(c1 && c2 && c3 && c4);
+  const h = Math.floor(cool / 3600000), mm = Math.ceil(cool % 3600000 / 60000);
+  $('wWhy').textContent = !c4 ? t('wCool')(h, mm) : wd === 0 ? '' : !c1 ? t('r1') : !c2 ? t('r2') : !c3 ? t('r3')(reqHold, S.hold) : '';
+  $('wToShop').classList.toggle('hidden', !(wd > 0 && c1 && c2 && !c3));
+  $('wHistBox').classList.toggle('hidden', !S.wd.length);
+  $('wHist').innerHTML = S.wd.map(x => `<div class="flex items-center justify-between gap-2"><span>${new Date(x.ts).toLocaleString(LOCALE[S.lang], { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}</span>${wdBadge(x)}<span class="num text-neutral-200">-${fmtN(x.amount)} ⭐</span></div>`).join('');
+}
+$('wAmt').oninput = e => { const v = Math.floor(+e.target.value); wd = isFinite(v) && v > 0 ? v : 0; renderWd(); };
+$('wMax').onclick = () => { wd = wdMax(); $('wAmt').value = wd || ''; renderWd(); };
+$('wToShop').onclick = () => go('shop');
+$('wBtn').onclick = async () => {
+  const a = wd; $('wBtn').disabled = true;
+  const wid = Date.now(); let srv = false;
+  try { await rawApi('/withdraw', { amount:a }); srv = true; } catch (e) { if (e && e.msg) { toast(e.msg); return renderWd(); } }
+  S.balance -= a; S.wd.unshift({ id:wid, ts:wid, amount:a, status:'pending' }); S.wd = S.wd.slice(0, 10);
+  if (!srv) { R.wd.unshift({ id:wid, uid:myId, name:myName || ('ID ' + myId), amount:a, ts:wid, status:'pending' }); rsave(); }
+  wd = 0; $('wAmt').value = ''; save(); renderStatic(); toast(t('wdDone'));
+  if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+};
+
+/* ================= Друзья (реферальная система) ================= */
+const BOT_LINK = 'https://t.me/PulseStarr_bot/app';     // ← ваш бот / Mini App
+const REF_PCT = 0.05, ACTIVE_HOLD = 12;               // активный друг: холд от 12 ⭐
+const tgUser = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+const refCode = tgUser && tgUser.id ? String(tgUser.id) : '1090625597';
+const refLink = `${BOT_LINK}?startapp=ref_${refCode}`;
+const esc = x => String(x).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const isActive = f => f.hold >= ACTIVE_HOLD;
+let frExpanded = false;
+function renderFriends() {
+  renderTasks(); renderStake();
+  const fl = S.friends, act = fl.filter(isActive).length;
+  $('frCond').textContent = t('actTxt')(ACTIVE_HOLD);
+  $('frCode').textContent = refCode;
+  $('frCount').textContent = fl.length;
+  $('frActive').textContent = t('actN')(act);
+  $('frEarn').textContent = f2(S.refEarned);
+  $('frListT').textContent = t('listT')(fl.length);
+  $('frAll').textContent = frExpanded ? t('collapse') : t('allBtn'); $('frAll').classList.toggle('hidden', fl.length <= 3);
+  const vis = frExpanded ? fl : fl.slice(0, 3);
+  $('frList').innerHTML = vis.length ? vis.map(f => {
+    const a = isActive(f);
+    return `<div class="card p-3 flex items-center gap-3">
+      <div class="w-10 h-10 rounded-full bg-[#242424] grid place-items-center font-bold text-gold shrink-0">${esc((f.name || '?')[0].toUpperCase())}</div>
+      <div class="flex-1 min-w-0"><div class="font-bold text-sm truncate">${esc(f.name)}</div>
+        <div class="flex items-center gap-1.5 text-[11px] mt-0.5 ${a ? 'text-ok' : 'text-neutral-500'}"><span class="w-1.5 h-1.5 rounded-full ${a ? 'bg-ok' : 'bg-neutral-600'}"></span>${a ? t('fActive') : t('fInactive') + ' · ' + t('fNeed')(ACTIVE_HOLD - f.hold)}</div></div>
+      <div class="text-right shrink-0"><div class="font-bold text-sm num ${f.earned > 0 ? 'text-ok' : 'text-neutral-400'}">+${f2(f.earned)} ⭐</div></div></div>`;
+  }).join('') : `<div class="card p-5 text-center text-xs text-neutral-500 leading-relaxed">${t('emptyF')}</div>`;
+}
+async function copyText(txt) {
+  try { await navigator.clipboard.writeText(txt); return true; }
+  catch (e) { try { const ta = document.createElement('textarea'); ta.value = txt; ta.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(ta); ta.select(); const ok = document.execCommand('copy'); ta.remove(); return ok; } catch (e2) { return false; } }
+}
+$('frCopy').onclick = async () => { toast((await copyText(refLink)) ? t('copiedL') : t('copyFail')); if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light'); };
+$('frShare').onclick = () => {
+  const url = `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(t('shareTxt'))}`;
+  if (tg && tg.openTelegramLink) tg.openTelegramLink(url); else window.open(url, '_blank');
+};
+$('frAll').onclick = () => { frExpanded = !frExpanded; renderFriends(); };
+/* Награда 5% начисляется строго в момент сбора активным другом. В продакшене это делает сервер;
+   клиент только получает список: GET-подобный POST /api/referrals -> { friends:[{id,name,hold,earned}], earned } */
+function friendCollect(f, amount) {
+  if (!isActive(f)) return false;
+  const r = amount * REF_PCT; S.balance += r; f.earned += r; S.refEarned += r;
+  save(); renderStatic(); renderFriends(); toast(t('refGot')(f2(r))); return true;
+}
+async function loadFriends() {
+  try { const d = await api('/referrals', {}); if (Array.isArray(d.friends)) { S.friends = d.friends; S.refEarned = +d.earned || 0; save(); } } catch (e) { /* без бэкенда — локальные данные */ }
+  renderFriends();
+}
+
+/* ================= Общее ================= */
+const LANGS = ['ru', 'uk', 'en'], LANG_LBL = { ru:'RU', uk:'UA', en:'EN' }, LOCALE = { ru:'ru-RU', uk:'uk-UA', en:'en-GB' };
+$('lang').onclick = () => { S.lang = LANGS[(LANGS.indexOf(S.lang) + 1) % 3]; save(); applyLang(); };
+function applyLang() {
+  document.documentElement.lang = S.lang;
+  document.querySelectorAll('[data-i]').forEach(el => { const v = t(el.dataset.i); if (typeof v === 'string') el.textContent = v; });
+  $('lang').textContent = LANG_LBL[S.lang] || 'RU';
+  renderStatic(); renderShop(); renderCalc(+$('cLvl').value || curLvl()); renderLevels(); renderFriends(); renderUp(); renderTasks(); renderStake();
+}
+document.querySelectorAll('.tab[data-tab]').forEach(b => b.onclick = () => {
+  closeMenu();
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === b || (x.id === 'menuBtn' && ['levels','upgrader','tasks','stake'].includes(b.dataset.tab))));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + b.dataset.tab));
+  window.scrollTo(0, 0);
+  if (b.dataset.tab === 'levels') { renderLevels(); renderStatic(); }
+  if (b.dataset.tab === 'friends') loadFriends();
+  if (b.dataset.tab === 'upgrader') renderUp();
+  if (b.dataset.tab === 'tasks') renderTasks();
+  if (b.dataset.tab === 'stake') renderStake();
+  if (b.dataset.tab === 'withdraw') { renderWd(); pullMyWd(); }
+  if (tg && tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+});
+
+/* ================= Меню (разделы платформы) ================= */
+const menuModal = $('menuModal'), menuBtn = $('menuBtn');
+const syncNav = () => document.documentElement.style.setProperty('--navh', $('nav').offsetHeight + 'px');
+syncNav(); addEventListener('resize', syncNav);
+function openMenu() {
+  syncNav(); menuModal.classList.add('open'); menuBtn.classList.add('open', 'on'); menuBtn.setAttribute('aria-expanded', 'true');
+  document.querySelectorAll('.tab[data-tab]').forEach(x => x.classList.remove('on'));
+  if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+}
+function closeMenu() {
+  if (!menuModal.classList.contains('open')) return;
+  menuModal.classList.remove('open'); menuBtn.classList.remove('open'); menuBtn.setAttribute('aria-expanded', 'false');
+  const cur = document.querySelector('.view.on'), id = cur && cur.id.slice(2);
+  menuBtn.classList.toggle('on', ['levels','upgrader','tasks','stake'].includes(id));
+  const tabEl = document.querySelector(`.tab[data-tab="${id}"]`); if (tabEl) tabEl.classList.add('on');
+}
+menuBtn.onclick = () => menuModal.classList.contains('open') ? closeMenu() : openMenu();
+$('menuClose').onclick = $('menuBd').onclick = closeMenu;
+addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+document.querySelectorAll('[data-m]').forEach(c => c.onclick = () => {
+  if (c.dataset.m === 'up') { closeMenu(); go('upgrader'); } else if (c.dataset.m === 'tasks') { closeMenu(); go('tasks'); } else if (c.dataset.m === 'stake') { closeMenu(); go('stake'); } else toast(t('soon'));
+});
+
+/* ================= Апгрейдер ================= */
+const UP_EDGE = 96, UP_MULTS = [1.5, 2, 5, 10];
+const UP = { bet:10, x:2, mode:'under', pay:'bal', busy:false, ang:0, res:null };
+const upChance = x => Math.round(UP_EDGE / x * 100) / 100;
+const NICKS = ['StarHunter','cryptoFox','ton_whale','Mike_77','anna.k','zeroDay','NightOwl','d1mka','lunaV','Satoshi_UA','kvitka','BlockBro','nazar_x','orbit9'];
+const myName = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.first_name) || null;
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const fakeEntry = () => { const x = pick([1.5,1.5,2,2,2,3,5,5,10,20,50,100]), bet = pick([10,20,50,50,100,100,250,500,1000]); return { n:pick(NICKS), bet, x, ok:Math.random() < upChance(x) / 100 * 1.15 }; };
+let UH = Array.from({length:9}, fakeEntry);
+function rnd2() { const a = new Uint32Array(1); crypto.getRandomValues(a); return Math.floor(a[0] / 4294967296 * 10000) / 100; }
+
+(function buildUp() {
+  let tk = ''; for (let i = 0; i < 60; i++) { const a = i * 6 * Math.PI / 180, r1 = i % 5 ? 70 : 66, r2 = 74; tk += `<line x1="${110 + r1 * Math.sin(a)}" y1="${110 - r1 * Math.cos(a)}" x2="${110 + r2 * Math.sin(a)}" y2="${110 - r2 * Math.cos(a)}"/>`; }
+  $('upTicks').innerHTML = tk;
+  $('upMults').innerHTML = UP_MULTS.map(m => `<button class="mulc" data-x="${m}">x${m}</button>`).join('') + '<div class="ubox flex items-center px-2 gap-1"><span class="text-gold font-bold text-xs">x</span><input id="upXIn" type="number" inputmode="decimal" min="1.01" max="100" step="any" value="2" class="bg-transparent w-full min-w-0 outline-none font-bold num text-xs" aria-label="Multiplier 1.01-100" placeholder="1.01–100"></div>';
+})();
+
+function upBetVal() { const v = parseFloat($('upBetIn').value); return isFinite(v) ? Math.floor(v * 100) / 100 : 0; }
+function renderUp(balOverride) {
+  const x = UP.x, c = upChance(x), bet = upBetVal();
+  $('upArc').setAttribute('stroke-dasharray', `${c} ${100 - c}`);
+  const rot = UP.mode === 'under' ? -90 : -90 + (100 - c) * 3.6;
+  $('upArc').setAttribute('transform', `rotate(${rot} 110 110)`);
+  if (!UP.res) { $('upC1').textContent = 'x' + x.toFixed(2); $('upC1').style.color = '#FACC15'; $('upC2').textContent = c.toFixed(2) + '%'; $('upC2').style.color = ''; }
+  $('upBal').textContent = f2(balOverride != null ? balOverride : S.balance);
+  $('upChV').textContent = c.toFixed(2) + '%'; $('upMuV').textContent = 'x' + x.toFixed(2);
+  $('upWiV').textContent = f2(bet * x) + ' ⭐';
+  const lo = UP.mode === 'under' ? 0 : 100 - c, hi = UP.mode === 'under' ? c : 100;
+  $('upZone').textContent = t('upZoneU')(lo.toFixed(2), hi.toFixed(2));
+  document.querySelectorAll('#upMode .seg').forEach(b => b.classList.toggle('on', b.dataset.mode === UP.mode));
+  document.querySelectorAll('#upPay .seg').forEach(b => b.classList.toggle('on', b.dataset.pay === UP.pay));
+  document.querySelectorAll('#upMults .mulc').forEach(b => b.classList.toggle('on', +b.dataset.x === UP.x));
+  if (!UP.busy) $('upGo').textContent = t('upGo');
+  $('upGo').disabled = UP.busy;
+  renderUpList();
+}
+function renderUpList() {
+  $('upList').innerHTML = UH.slice(0, 10).map(e => {
+    const name = e.me ? (myName || t('upYou')) : e.n;
+    const gain = e.ok ? '+' + fmtN(e.bet * e.x) : '−' + fmtN(e.bet);
+    return `<div class="hrow flex items-center gap-2.5 rounded-xl px-2.5 py-2 ${e.me ? 'bg-amber/10 border border-amber/30' : 'bg-bg'}">
+      <div class="w-8 h-8 rounded-full grid place-items-center text-[12px] font-bold ${e.ok ? 'bg-ok/15 text-ok' : 'bg-bad/15 text-bad'}">${esc(name[0].toUpperCase())}</div>
+      <div class="min-w-0 flex-1"><div class="text-[13px] font-bold truncate">${esc(name)}</div><div class="text-[11px] text-neutral-500 num">${fmtN(e.bet)} ⭐ · <span class="text-amber font-bold">x${+e.x}</span></div></div>
+      <div class="text-right"><div class="text-[12px] font-bold num ${e.ok ? 'text-ok' : 'text-bad'}">${gain} ⭐</div><div class="text-[10px] ${e.ok ? 'text-ok' : 'text-bad'} opacity-80">${t(e.ok ? 'upOk' : 'upBad')}</div></div></div>`;
+  }).join('');
+}
+function upSetX(v) { UP.x = Math.min(100, Math.max(1.01, Math.round(v * 100) / 100)); $('upXIn').value = UP.x; renderUp(); }
+document.querySelectorAll('#upMults .mulc').forEach(b => b.onclick = () => { if (!UP.busy) upSetX(+b.dataset.x); });
+$('upXIn').oninput = () => { const v = parseFloat($('upXIn').value); if (v >= 1.01 && v <= 100) { UP.x = Math.round(v * 100) / 100; renderUp(); } };
+$('upXIn').onchange = () => { const v = parseFloat($('upXIn').value); if (!(v >= 1.01 && v <= 100)) toast(t('upXBad')); upSetX(isFinite(v) ? v : 2); };
+$('upBetIn').oninput = () => renderUp();
+document.querySelectorAll('#upQuick .pre').forEach(b => b.onclick = () => {
+  if (UP.busy) return;
+  $('upBetIn').value = b.dataset.q === 'max' ? Math.floor(S.balance * 100) / 100 : b.dataset.q; renderUp();
+});
+document.querySelectorAll('#upMode .seg').forEach(b => b.onclick = () => { if (UP.busy) return; UP.mode = b.dataset.mode; renderUp(); });
+document.querySelectorAll('#upPay .seg').forEach(b => b.onclick = () => { if (UP.busy) return; UP.pay = b.dataset.pay; renderUp(); });
+$('upBack').onclick = openMenu; $('mineUp').onclick = () => go('upgrader'); $('upLv').onclick = () => go('levels');
+
+function upBurst(ok) {
+  const w = $('upWheel');
+  if (!ok) return;
+  for (let i = 0; i < 16; i++) {
+    const a = Math.random() * Math.PI * 2, d = 90 + Math.random() * 90, sp = document.createElement('span');
+    sp.className = 'spark'; sp.textContent = i % 3 ? '⭐' : '✨';
+    sp.style.setProperty('--dx', Math.cos(a) * d + 'px'); sp.style.setProperty('--dy', Math.sin(a) * d + 'px');
+    w.appendChild(sp); setTimeout(() => sp.remove(), 1000);
+  }
+}
+function upSpin() {
+  if (UP.busy) return;
+  const bet = upBetVal(), x = UP.x;
+  if (!(bet >= 1)) return toast(t('upMin'));
+  if (bet > S.balance + 1e-9) return toast(t('upNoBal'));
+  const c = upChance(x), roll = rnd2();
+  const win = UP.mode === 'under' ? roll < c : roll >= 100 - c;
+  const payout = win ? Math.round(bet * x * 100) / 100 : 0;
+  settle(); const lv0 = curLvl();
+  S.balance = Math.max(0, S.balance - bet);
+  const toBal = UP.pay === 'bal';
+  if (win) { if (toBal) S.balance += payout; else S.hold += payout; }
+  save();
+  UP.busy = true; UP.res = 'spin';
+  $('upWheel').className = 'uwheel'; $('upRes').textContent = '';
+  $('upC1').textContent = '…'; $('upC1').style.color = '#FACC15'; $('upC2').textContent = t('upSpin'); $('upC2').style.color = '';
+  $('upGo').textContent = t('upSpin');
+  const ptr = $('upPtr'), base = Math.ceil(UP.ang / 360) * 360;
+  UP.ang = base + 360 * 5 + roll * 3.6;
+  ptr.style.transition = 'transform 4.2s cubic-bezier(.12,.6,.1,1)'; ptr.style.transform = `rotate(${UP.ang}deg)`;
+  if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+  renderUp(S.balance + (win && toBal ? -payout : 0));
+  setTimeout(() => {
+    UP.busy = false; UP.res = 'done';
+    UH.unshift({ n:myName || t('upYou'), me:true, bet, x, ok:win }); UH = UH.slice(0, 20);
+    $('upWheel').classList.add(win ? 'win' : 'lose');
+    $('upC1').textContent = roll.toFixed(2); $('upC1').style.color = win ? '#34D27B' : '#F87171';
+    $('upC2').textContent = win ? '+' + f2(payout) + ' ⭐' : '−' + f2(bet) + ' ⭐'; $('upC2').style.color = win ? '#34D27B' : '#F87171';
+    $('upRes').innerHTML = win ? `<span class="text-ok">${t('upWon')}</span> <span class="text-neutral-400 text-[11px] font-sans font-semibold">${toBal ? '' : t('upToHold')}</span>` : `<span class="text-bad">${t('upLost')}</span>`;
+    upBurst(win); renderStatic(); renderUp();
+    if (win && curLvl() > lv0) toast(`${t('lvUp')}: ${t('lvl')} ${curLvl()}`);
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred(win ? 'success' : 'error');
+    setTimeout(() => { if (!UP.busy) { UP.res = null; $('upWheel').className = 'uwheel'; $('upRes').textContent = ''; renderUp(); } }, 3500);
+  }, 4300);
+}
+$('upGo').onclick = upSpin;
+(function feed() { setTimeout(() => { UH.unshift(fakeEntry()); UH = UH.slice(0, 20); if ($('v-upgrader').classList.contains('on')) renderUpList(); feed(); }, 3500 + Math.random() * 4000); })();
+
+/* ================= Задания ================= */
+const ICO = {
+  users:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5M17 5a3.5 3.5 0 010 7M21.5 20c0-2.5-1.5-4.2-3.5-5"/></svg>',
+  coins:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v4c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 10v4c0 1.7 3.1 3 7 3s7-1.3 7-3v-4"/></svg>',
+  vault:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.800-1-8-4.500-8-9V6z"/><path d="M12 8l1.200 2.600 2.800.3-2.100 1.900.6 2.800L12 14.200 9.500 15.600l.6-2.800L8 10.900l2.800-.3z"/></svg>'
+};
+const activeFriends = () => S.friends.filter(isActive).length;
+const TASKS = [
+  { id:'inv3',   cat:'soc', icon:'users', reward:50,   target:3,   prog:activeFriends, go:'friends' },
+  { id:'inv20',  cat:'soc', icon:'users', reward:500,  target:20,  prog:activeFriends, go:'friends' },
+  { id:'inv100', cat:'soc', icon:'users', reward:2500, target:100, prog:activeFriends, go:'friends' },
+  { id:'stake100', cat:'ach', icon:'coins', reward:100, target:100, prog:() => Math.floor(S.maxStake || 0), go:'stake' },
+  { id:'hold500',cat:'ach', icon:'vault', reward:2500, target:500, prog:() => Math.floor(S.hold), go:'shop' }
+];
+let tkCat = 'all';
+var TK_READY = false;
+function renderTasks() {
+  if (!TK_READY) return;
+  const cats = [['all','tkAll'], ['soc','tkSoc'], ['ach','tkAch']];
+  $('tkFilter').innerHTML = cats.map(([k, l]) => `<button class="chip ${tkCat === k ? 'on' : ''}" data-c="${k}">${t(l)}</button>`).join('');
+  let ready = 0;
+  const list = TASKS.filter(k => tkCat === 'all' || k.cat === tkCat);
+  TASKS.forEach(k => { if (!S.tasksDone[k.id] && k.prog() >= k.target) ready++; });
+  $('tkCnt').textContent = ready ? `🎁 ${ready}` : '';
+  $('tkList').innerHTML = list.length ? list.map(k => {
+    const p = Math.min(k.target, k.prog()), done = !!S.tasksDone[k.id], can = !done && p >= k.target, pct = p / k.target * 100;
+    const st = done ? 'tkDone' : can ? 'tkClaim' : p > 0 ? 'tkDo' : 'tkNot';
+    const cls = done ? 'border border-ok/40 text-ok bg-ok/10' : can ? 'cta' : p > 0 ? 'border border-amber text-amber bg-amber/10' : 'border border-line text-neutral-400 bg-bg';
+    const bar = done ? 'linear-gradient(90deg,#34D27B,#86efac)' : 'linear-gradient(90deg,#F59E0B,#FACC15)';
+    return `<div class="card p-4 ${done ? 'opacity-75' : ''}">
+      <div class="flex items-start gap-3">
+        <span class="mico shrink-0">${ICO[k.icon]}</span>
+        <div class="min-w-0 flex-1"><div class="font-display text-[13px] font-bold leading-snug">${t('tk_' + k.id + 'T')}</div><div class="text-[11px] text-neutral-400 mt-1 leading-snug">${t('tk_' + k.id + 'D')(ACTIVE_HOLD)}</div></div>
+        <span class="shrink-0 text-[12px] font-bold text-gold px-2.5 py-1 rounded-full bg-amber/10 border border-amber/30 num whitespace-nowrap">⭐ +${fmtN(k.reward)}</span>
+      </div>
+      <div class="flex items-center gap-3 mt-3">
+        <div class="flex-1 min-w-0"><div class="flex justify-between text-[10px] text-neutral-400 mb-1"><span>${t('tkProg')}</span><b class="num text-neutral-200">${fmtN(p)} / ${fmtN(k.target)}</b></div>
+          <div class="h-2 rounded-full bg-[#262626] overflow-hidden"><div class="h-full rounded-full transition-all duration-500" style="width:${pct}%;background:${bar}"></div></div></div>
+        <button data-t="${k.id}" class="shrink-0 min-w-[112px] rounded-xl px-3 py-2.5 text-[11px] font-bold ${cls}" ${done ? 'disabled' : ''}>${t(st)}</button>
+      </div></div>`;
+  }).join('') : `<div class="card p-5 text-center text-xs text-neutral-500">${t('tkEmpty')}</div>`;
+}
+$('tkFilter').onclick = e => { const b = e.target.closest('[data-c]'); if (b) { tkCat = b.dataset.c; renderTasks(); } };
+$('tkList').onclick = e => {
+  const b = e.target.closest('[data-t]'); if (!b) return;
+  const k = TASKS.find(x => x.id === b.dataset.t); if (!k || S.tasksDone[k.id]) return;
+  if (k.prog() >= k.target) {
+    S.tasksDone[k.id] = true; S.balance += k.reward; save(); renderStatic(); renderTasks();
+    toast(`${t('tkGot')}: +${fmtN(k.reward)} ⭐`);
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+  } else go(k.go);
+};
+$('tkBack').onclick = openMenu;
+TK_READY = true; renderTasks();
+
+/* ================= Внутренний холд / стейкинг ================= */
+const SK_PKGS = [{ d:30, p:35 }, { d:90, p:110 }, { d:120, p:150 }];
+const SK_MIN = 10, DAY = 86400000;
+/* Динамический лимит холда: растёт вместе с уровнем (холд, нужный для уровня +100), с Ур. 400 — максимум 10 000 000 ⭐. */
+const skCapAt = n => n >= 400 ? 10000000 : Math.ceil(HOLD[Math.min(MAXLV, n + 100)] / 1000) * 1000;
+var SK_READY = false;
+let skSel = 0, skAmt = 0;
+const skLg = () => Math.floor((curLvl() - 1) / 100);
+const skRoom = () => Math.max(0, skCapAt(curLvl()) - Math.floor(S.hold));
+const skMaxAmt = () => Math.max(0, Math.min(Math.floor(S.balance), skRoom()));
+function renderLimits() {
+  const cur = skLg();
+  $('skLimTbl').innerHTML = LEAGUES.map((L, i) => {
+    const a = i * 100 + 1, b = Math.min(MAXLV, i * 100 + 100), lo = skCapAt(a), hi = skCapAt(b);
+    return `<div class="flex items-center gap-2 rounded-xl px-2.5 py-2 ${i === cur ? 'bg-amber/10 border border-amber/30' : 'bg-bg'}"><span class="text-base">${L.icon}</span><span class="flex-1 min-w-0 truncate font-semibold">${L[S.lang]}</span><span class="text-neutral-500 num">${a}–${b}</span><b class="num text-gold w-[88px] text-right">${lo === hi ? fmtC(lo) : fmtC(lo) + ' → ' + fmtC(hi)}</b></div>`;
+  }).join('');
+}
+function renderStake() {
+  if (!SK_READY) return;
+  renderLimits();
+  const lg = skLg(), cap = skCapAt(curLvl()), mx = skMaxAmt(), pk = SK_PKGS[skSel];
+  $('skBal').textContent = f2(S.balance);
+  $('skLg').textContent = `${LEAGUES[lg].icon} ${LEAGUES[lg][S.lang]} · ${t('lvl')} ${curLvl()}`;
+  $('skHoldT').textContent = t('skHoldT')(fmtN(S.hold), fmtN(cap));
+  $('skCap').style.width = Math.min(100, S.hold / cap * 100) + '%';
+  $('skPkgs').innerHTML = SK_PKGS.map((k, i) => `<button data-p="${i}" class="rounded-2xl p-3 text-center border ${i === skSel ? 'border-amber bg-amber/10' : 'border-line bg-bg'}" style="${i === skSel ? 'box-shadow:0 0 18px rgba(245,158,11,.3)' : ''}">
+    <div class="font-display text-[13px] font-bold">${t('skDays')(k.d)}</div>
+    <div class="font-display text-lg font-bold text-ok mt-1.5 num">+${k.p}%</div>
+    <div class="text-[10px] text-neutral-500">${t('skProfit')}</div></button>`).join('');
+  $('skRange').textContent = t('skRange')(SK_MIN, fmtN(mx));
+  const ok = skAmt >= SK_MIN && skAmt <= mx, gain = Math.floor(skAmt * pk.p / 100);
+  $('skPay').textContent = t('skPayT')(fmtN(skAmt + gain), fmtN(gain));
+  $('skWhy').textContent = ok || !skAmt ? '' : skAmt > Math.floor(S.balance) ? t('skNoBal') : skAmt > skRoom() ? t('skLimit') : skAmt < SK_MIN ? t('skMinMsg')(SK_MIN) : '';
+  $('skGo').disabled = !ok;
+  const now = Date.now();
+  $('skList').innerHTML = S.stakes.length ? S.stakes.map(x => {
+    const left = x.end - now, ready = left <= 0, pct = Math.min(100, (1 - Math.max(0, left) / (x.days * DAY)) * 100);
+    const pay = x.amount + Math.floor(x.amount * x.pct / 100);
+    return `<div class="rounded-xl bg-bg border border-line p-3">
+      <div class="flex items-center justify-between gap-2"><div class="font-bold text-sm num">${fmtN(x.amount)} ⭐ <span class="text-ok text-xs">+${x.pct}%</span></div><div class="text-[11px] text-neutral-400">${t('skDays')(x.days)}</div></div>
+      <div class="h-1.5 rounded-full bg-[#262626] overflow-hidden mt-2"><div class="h-full rounded-full" style="width:${pct}%;background:${ready ? '#34D27B' : 'linear-gradient(90deg,#F59E0B,#FACC15)'}"></div></div>
+      <div class="flex items-center justify-between gap-2 mt-2"><div class="text-[11px] ${ready ? 'text-ok' : 'text-neutral-400'} num">${ready ? t('skReady') : t('skLeft')(Math.floor(left / DAY), Math.floor(left % DAY / 3600000))}<div class="text-neutral-500">→ ${fmtN(pay)} ⭐</div></div>
+      <button data-take="${x.id}" class="rounded-xl px-3 py-2 text-[11px] font-bold ${ready ? 'cta' : 'border border-line text-neutral-500'}" ${ready ? '' : 'disabled'}>${t('skTake')}</button></div></div>`;
+  }).join('') : `<div class="text-xs text-neutral-500 text-center py-3">${t('skNone')}</div>`;
+}
+$('skPkgs').onclick = e => { const b = e.target.closest('[data-p]'); if (b) { skSel = +b.dataset.p; renderStake(); } };
+$('skIn').oninput = () => { skAmt = Math.max(0, Math.floor(parseFloat($('skIn').value) || 0)); renderStake(); };
+$('skMax').onclick = () => { skAmt = skMaxAmt(); $('skIn').value = skAmt || ''; renderStake(); };
+$('skQuick').onclick = e => { const b = e.target.closest('[data-q]'); if (!b) return; skAmt += +b.dataset.q; $('skIn').value = skAmt; renderStake(); };
+$('skGo').onclick = () => {
+  const mx = skMaxAmt(), pk = SK_PKGS[skSel];
+  if (!(skAmt >= SK_MIN && skAmt <= mx)) return;
+  settle(); const lv0 = curLvl();
+  S.balance -= skAmt; S.hold += skAmt; S.maxStake = Math.max(S.maxStake || 0, skAmt);
+  S.stakes.unshift({ id:Date.now(), amount:skAmt, days:pk.d, pct:pk.p, end:Date.now() + pk.d * DAY });
+  toast(t('skFrozen')(fmtN(skAmt), pk.d)); skAmt = 0; $('skIn').value = '';
+  save(); renderStatic(); renderStake();
+  if (curLvl() > lv0) setTimeout(() => toast(`${t('lvUp')}: ${t('lvl')} ${curLvl()}`), 1600);
+  if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+};
+$('skList').onclick = e => {
+  const b = e.target.closest('[data-take]'); if (!b) return;
+  const i = S.stakes.findIndex(x => x.id === +b.dataset.take), x = S.stakes[i];
+  if (!x || x.end > Date.now()) return;
+  settle(); S.hold = Math.max(0, S.hold - x.amount);
+  const pay = x.amount + Math.floor(x.amount * x.pct / 100); S.balance += pay; S.stakes.splice(i, 1);
+  save(); renderStatic(); renderStake(); toast(t('skTaken')(fmtN(pay)));
+};
+$('skLim').onclick = () => $('skLimBox').classList.toggle('hidden');
+$('skBack').onclick = openMenu; $('skShop').onclick = () => go('shop');
+setInterval(() => { if ($('v-stake').classList.contains('on')) renderStake(); }, 30000);
+SK_READY = true; renderStake();
+const u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+if (u && u.photo_url) $('avatar').innerHTML = `<img src="${u.photo_url}" class="w-full h-full object-cover" alt="">`;
+
+/* ================= Выводы: статусы и доставка ================= */
+const myId = tgUser && tgUser.id ? String(tgUser.id) : 'local';
+const ADMIN_ID = 8822542289;
+const IS_ADMIN = !!(tgUser && Number(tgUser.id) === ADMIN_ID);   // только UI; реальную проверку обязан делать сервер по подписанному initData
+const RK = 'pulsestar_admin_db';
+let R; try { R = JSON.parse(localStorage.getItem(RK) || ''); } catch (e) {}
+if (!R || !R.users || !R.wd) R = { users:{}, wd:[] };
+function rsave() { try { localStorage.setItem(RK, JSON.stringify(R)); } catch (e) {} }
+async function rawApi(path, body) {
+  const r = await fetch(API_URL + path, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ ...body, initData: tg ? tg.initData : '' }) });
+  if (!(r.headers.get('content-type') || '').includes('json')) throw { net:1 };
+  const d = await r.json(); if (!r.ok) throw { msg:d.error || ('HTTP ' + r.status) }; return d;
+}
+function applyWdStatus(id, st) {
+  const x = S.wd.find(w => w.id === id); if (!x || x.status !== 'pending' || x.status === st) return;
+  x.status = st; if (st === 'approved') S.wdTotal = (S.wdTotal || 0) + x.amount; if (st === 'rejected') S.balance += x.amount; save();
+}
+function syncMyWd() { S.wd.forEach(x => { if (x.id && x.status === 'pending') { const r = R.wd.find(w => w.id === x.id); if (r && r.status !== 'pending') applyWdStatus(x.id, r.status); } }); }
+async function pullMyWd() { try { const d = await rawApi('/my-withdrawals', {}); (d.items || []).forEach(i => applyWdStatus(i.id, i.status)); renderStatic(); } catch (e) {} }
+const WB = { ru:['Выплачено','Отклонено'], uk:['Виплачено','Відхилено'], en:['Paid','Rejected'] };
+function wdBadge(x) {
+  const [ok, no] = WB[S.lang] || WB.ru;
+  return x.status === 'approved' ? `<span class="text-[10px] font-bold text-ok bg-ok/10 rounded-full px-2 py-0.5">${ok}</span>`
+    : x.status === 'rejected' ? `<span class="text-[10px] font-bold text-bad bg-bad/10 rounded-full px-2 py-0.5">${no}</span>`
+    : `<span class="text-[10px] font-bold text-amber bg-amber/10 rounded-full px-2 py-0.5">${t('wPend')}</span>`;
+}
+
+/* ================= Админ-панель ================= */
+if (!IS_ADMIN) { $('v-admin').remove(); document.querySelector('[data-tab="admin"]').remove(); }
+else {
+  const A = { u:null, mode:null, f:'pending', wd:[] };
+  $('avatar').style.borderColor = 'rgba(250,204,21,.7)'; $('avatar').style.cursor = 'pointer';
+  $('avatar').onclick = () => go('admin');
+  const holdOf = id => id === myId ? S.hold : ((R.users[id] || {}).hold || 0);
+  const locUser = id => id === myId ? { id, name:myName || 'Вы', balance:S.balance, hold:S.hold } : (R.users[id] || (R.users[id] = { id, name:'ID ' + id, balance:0, hold:0 }));
+  async function admCall(op, body, local) {
+    try { const d = await rawApi('/admin/' + op, body); A.mode = 'server'; return d; }
+    catch (e) { if (e && e.msg) { toast(e.msg); return null; } A.mode = 'local'; return local(); }
+  }
+  function locMove(id, f, d) {
+    if (id === myId) { settle(); S[f] = Math.max(0, Math.round((S[f] + d) * 100) / 100); save(); renderStatic(); renderShop(); renderStake(); return locUser(id); }
+    const u = locUser(id); u[f] = Math.max(0, Math.round((u[f] + d) * 100) / 100); rsave(); return u;
+  }
+  function locDecide(id, st) {
+    const x = R.wd.find(w => w.id === id); if (!x || x.status !== 'pending') { toast('Заявка уже обработана'); return null; }
+    x.status = st;
+    if (x.uid === myId) { applyWdStatus(id, st); renderStatic(); }
+    else if (st === 'rejected') { const u = locUser(x.uid); u.balance += x.amount; }
+    rsave(); return { ok:true };
+  }
+  const fmtWd = x => new Date(x.ts).toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+  function renderAdm() {
+    $('aMode').textContent = A.mode === 'server' ? '● сервер' : A.mode === 'local' ? '● локально: только это устройство' : '';
+    $('aMode').className = 'text-[10px] font-bold ' + (A.mode === 'server' ? 'text-ok' : 'text-amber');
+    const u = A.u;
+    if (!u) $('aUser').innerHTML = '<div class="text-xs text-neutral-500">Введите ID и нажмите «Найти»</div>';
+    else { const I = info(levelByHold(u.hold)), lg = LEAGUES[I.lg];
+      $('aUser').innerHTML = `<div class="rounded-xl bg-bg p-3 space-y-1.5 text-xs"><div class="flex justify-between"><b class="text-sm">${esc(u.name || 'ID ' + u.id)}</b><span class="text-neutral-500 num">ID ${esc(u.id)}</span></div>
+        <div class="flex justify-between"><span class="text-neutral-400">Баланс</span><b class="num">${f2(u.balance)} ⭐</b></div>
+        <div class="flex justify-between"><span class="text-neutral-400">Холд</span><b class="num text-gold">${fmtN(u.hold)} ⭐</b></div>
+        <div class="flex justify-between"><span class="text-neutral-400">Уровень / лига</span><b>${I.n} · ${lg.icon} ${lg.ru}</b></div></div>`; }
+    $('aWdList').innerHTML = A.wd.length ? A.wd.map(x => {
+      const need = Math.ceil(x.amount * WD_HOLD_PCT), ok = x.amount >= WD_MIN && (x.hold || 0) >= need;
+      return `<div class="rounded-xl bg-bg border border-line p-3 text-xs space-y-2"><div class="flex justify-between gap-2"><div class="min-w-0"><b class="truncate block">${esc(x.name || 'ID ' + x.uid)}</b><span class="text-neutral-500 num">ID ${esc(x.uid)} · ${fmtWd(x)}</span></div><b class="num text-sm shrink-0">${fmtN(x.amount)} ⭐</b></div>
+        <div class="flex justify-between items-center gap-2"><span class="${ok ? 'text-ok' : 'text-bad'} num">${ok ? '✓ условия выполнены' : `✕ нужен холд ${fmtN(need)}, есть ${fmtN(x.hold || 0)}`}</span>${wdBadge(x)}</div>
+        ${x.status === 'pending' ? `<div class="grid grid-cols-2 gap-2"><button data-d="approved" data-id="${x.id}" class="cta rounded-xl py-2.5 font-bold">Одобрить вывод</button><button data-d="rejected" data-id="${x.id}" class="rounded-xl py-2.5 font-bold border border-bad/40 text-bad bg-bad/10">Отклонить</button></div>` : ''}</div>`;
+    }).join('') : '<div class="text-xs text-neutral-500 text-center py-3">Заявок нет</div>';
+  }
+  async function admLoadWd() {
+    const d = await admCall('withdrawals', { status:A.f }, () => ({ items:R.wd.filter(x => A.f === 'all' || x.status === A.f).map(x => ({ ...x, hold:holdOf(x.uid) })) }));
+    if (d) { A.wd = d.items || []; renderAdm(); }
+  }
+  async function admFind() {
+    const id = $('aId').value.replace(/\D/g, ''); if (!id) return toast('Введите Telegram ID');
+    const u = await admCall('user', { id }, () => locUser(id)); if (u) { A.u = u; renderAdm(); }
+  }
+  async function admMove(f, sign) {
+    if (!A.u) return toast('Сначала найдите пользователя');
+    const v = Math.abs(+$(f === 'hold' ? 'aHold' : 'aBal').value); if (!(v > 0)) return toast('Введите сумму');
+    const id = String(A.u.id), d = sign * v;
+    const u = await admCall(f, { id, delta:d }, () => locMove(id, f, d)); if (!u) return;
+    if (id === myId && A.mode === 'server') locMove(id, f, d);
+    A.u = u; renderAdm(); admLoadWd(); toast((sign > 0 ? '+' : '−') + fmtN(v) + ' ⭐');
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+  }
+  $('aFind').onclick = admFind; $('aId').onkeydown = e => { if (e.key === 'Enter') admFind(); };
+  $('aHoldAdd').onclick = () => admMove('hold', 1); $('aHoldSub').onclick = () => admMove('hold', -1);
+  $('aBalAdd').onclick = () => admMove('balance', 1); $('aBalSub').onclick = () => admMove('balance', -1);
+  $('aBack').onclick = () => go('mining'); $('aRefresh').onclick = admLoadWd;
+  $('aFilter').onclick = e => { const b = e.target.closest('[data-f]'); if (!b) return; A.f = b.dataset.f; document.querySelectorAll('#aFilter .chip').forEach(c => c.classList.toggle('on', c === b)); admLoadWd(); };
+  $('aWdList').onclick = async e => {
+    const b = e.target.closest('[data-d]'); if (!b) return; b.disabled = true;
+    const id = +b.dataset.id, st = b.dataset.d;
+    const r = await admCall('withdraw', { id, status:st }, () => locDecide(id, st));
+    if (r) toast(st === 'approved' ? 'Вывод одобрен' : 'Заявка отклонена');
+    admLoadWd();
+  };
+  document.querySelector('[data-tab="admin"]').addEventListener('click', async () => {
+    if (!$('aId').value) $('aId').value = myId !== 'local' ? myId : '';
+    await admCall('ping', {}, () => ({})); renderAdm(); admLoadWd();
+  });
+}
+
+applyLang(); renderCalc(curLvl()); requestAnimationFrame(tick);
+
+/* ================= Welcome: выбор языка при первом запуске ================= */
+(function welcome() {
+  const W = $('welcome'), FLAG = 'pulsestar_welcome_done';
+  let seen = false; try { seen = !!localStorage.getItem(FLAG); } catch (e) {}
+  if (seen) { W.remove(); return; }
+  requestAnimationFrame(() => { W.classList.remove('out'); const b = W.querySelector('[data-wl]'); if (b) b.focus({ preventScroll:true }); });
+  W.addEventListener('click', e => {
+    const b = e.target.closest('[data-wl]'); if (!b) return;
+    S.lang = b.dataset.wl; save(); try { localStorage.setItem(FLAG, '1'); } catch (er) {}
+    applyLang();
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+    W.classList.add('out'); setTimeout(() => W.remove(), 450);
+  });
+})();
+</script>
+</body>
+</html>
