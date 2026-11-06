@@ -484,13 +484,34 @@ tailwind.config = { theme: { extend: {
   </div>
 
   <div id="wHistBox" class="card p-4 hidden"><div class="text-xs font-bold mb-2" data-i="wHist">Заявки на вывод</div><div id="wHist" class="text-xs space-y-1.5 text-neutral-400"></div></div>
-  <details class="card p-3 text-[11px] text-neutral-500">
-    <summary class="cursor-pointer">🧪 Demo</summary>
-    <div class="grid grid-cols-3 gap-2 mt-2">
-      <button id="tBal" class="chip">+800 ⭐</button><button id="tHold" class="chip">+200 холд</button><button id="reset" class="chip">Reset</button>
-    </div>
-    <div class="grid grid-cols-3 gap-2 mt-2"><button id="tSk" class="chip">Холд созрел</button><button id="tFr" class="chip">+Друг</button><button id="tFrAct" class="chip">Друг→активен</button><button id="tFrCol" class="chip">Друг собрал</button></div>
-  </details>
+</section>
+<!-- ========== ADMIN (виден только администратору) ========== -->
+<section id="v-admin" class="view space-y-3">
+  <div class="flex items-center justify-between pt-2">
+    <button id="aBack" class="h-9 px-3 rounded-xl card text-xs font-bold">‹ Назад</button>
+    <span id="aMode" class="text-[10px] font-bold text-neutral-400"></span>
+  </div>
+  <div><h2 class="font-display text-lg font-bold">Админ-панель</h2><p class="text-xs text-neutral-400 mt-1">Управление холдом, балансом и выводами</p></div>
+  <div class="card p-4 space-y-3">
+    <div class="text-xs font-bold">Пользователь</div>
+    <div class="flex gap-2"><input id="aId" type="text" inputmode="numeric" placeholder="Telegram ID" class="flex-1 min-w-0 bg-bg border border-line rounded-xl px-3 py-2.5 outline-none focus:border-amber num font-bold"><button id="aFind" class="cta rounded-xl px-4 text-xs font-bold">Найти</button></div>
+    <div id="aUser"></div>
+  </div>
+  <div class="card p-4 space-y-2.5">
+    <div class="text-xs font-bold">Внутренний холд ⭐</div>
+    <input id="aHold" type="number" inputmode="numeric" min="0" placeholder="Сумма" class="w-full bg-bg border border-line rounded-xl px-3 py-2.5 outline-none focus:border-amber num font-bold">
+    <div class="grid grid-cols-2 gap-2"><button id="aHoldAdd" class="cta rounded-xl py-3 text-xs font-bold">+ Добавить</button><button id="aHoldSub" class="rounded-xl py-3 text-xs font-bold border border-bad/40 text-bad bg-bad/10">− Списать</button></div>
+  </div>
+  <div class="card p-4 space-y-2.5">
+    <div class="text-xs font-bold">Доступный баланс ⭐</div>
+    <input id="aBal" type="number" inputmode="decimal" min="0" placeholder="Сумма" class="w-full bg-bg border border-line rounded-xl px-3 py-2.5 outline-none focus:border-amber num font-bold">
+    <div class="grid grid-cols-2 gap-2"><button id="aBalAdd" class="cta rounded-xl py-3 text-xs font-bold">+ Добавить</button><button id="aBalSub" class="rounded-xl py-3 text-xs font-bold border border-bad/40 text-bad bg-bad/10">− Списать</button></div>
+  </div>
+  <div class="card p-4">
+    <div class="flex items-center justify-between mb-2.5"><div class="text-xs font-bold">Заявки на вывод</div><button id="aRefresh" class="text-[11px] font-bold text-gold">Обновить</button></div>
+    <div id="aFilter" class="flex gap-2 mb-3"><button class="chip on" data-f="pending">Ожидают</button><button class="chip" data-f="approved">Одобрены</button><button class="chip" data-f="rejected">Отклонены</button><button class="chip" data-f="all">Все</button></div>
+    <div id="aWdList" class="space-y-2"></div>
+  </div>
 </section>
 </main>
 
@@ -566,6 +587,7 @@ tailwind.config = { theme: { extend: {
     <button class="tab hidden flex flex-col items-center gap-0.5" data-tab="levels"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20v-6M12 20V5M19 20v-10M3 20h18"/></svg><span class="text-[10px] font-semibold" data-i="nLevels">Уровни</span><i class="dot"></i></button>
     <button class="tab hidden" data-tab="tasks" aria-hidden="true"></button>
     <button class="tab hidden" data-tab="stake" aria-hidden="true"></button>
+    <button class="tab hidden" data-tab="admin" aria-hidden="true"></button>
   </div>
 </nav>
 
@@ -706,6 +728,7 @@ const go = name => document.querySelector(`[data-tab="${name}"]`).click();
 
 /* ================= Майнинг ================= */
 function renderStatic() {
+  syncMyWd();
   const L = info(curLvl()), nx = L.n < MAXLV ? info(L.n + 1) : null, lg = LEAGUES[L.lg];
   $('bal').textContent = f2(S.balance);
   $('hdrLvl').textContent = `${t('lvl')} ${L.n}`; $('lvlTxt').textContent = `${t('lvl')} ${L.n}`;
@@ -780,7 +803,6 @@ $('hdrLvlBtn').onclick = $('leagueCard').onclick = () => go('levels');
 
 /* ================= Магазин: пополнение внутреннего холда ================= */
 const API_URL = '/api';                // POST /api/create-invoice {amount, initData} -> {link};  POST /api/withdraw {amount, initData}
-const DEMO_MODE = true;                // true: без бэкенда всё засчитывается локально. В продакшене — false!
 let amt = 0;
 const row = (a, b, c = '') => `<div class="flex justify-between gap-3"><span>${a}</span><span class="num ${c}">${b}</span></div>`;
 function renderShop() {
@@ -814,19 +836,19 @@ $('payBtn').onclick = async () => {
       else if (st === 'pending') toast(t('pending'));
       else toast(st === 'failed' ? t('payFailed') : t('cancelled'));
     });
-  } catch (e) { if (DEMO_MODE) applyTopUp(a); else toast(t('noInvoice')); }
+  } catch (e) { toast(t('noInvoice')); }
 };
 
 /* ================= Вывод ================= */
 let wd = 0;
 const DAY_MS = 86400000;
 const wdMax = () => Math.max(0, Math.min(Math.floor(S.balance), Math.floor(S.hold / WD_HOLD_PCT)));
-const wdCool = () => S.wd.length ? Math.max(0, S.wd[0].ts + DAY_MS - Date.now()) : 0;
+const wdCool = () => { const x = S.wd.find(w => w.status !== 'rejected'); return x ? Math.max(0, x.ts + DAY_MS - Date.now()) : 0; };
 function renderWd() {
   const reqHold = Math.ceil(Math.max(wd, WD_MIN) * WD_HOLD_PCT), cool = wdCool();
   const c1 = wd >= WD_MIN, c2 = wd > 0 && S.balance >= wd, c3 = S.hold >= reqHold, c4 = cool === 0;
   $('wBal').textContent = f2(S.balance); $('wHold').textContent = fmtN(S.hold);
-  const tot = S.wdTotal || S.wd.reduce((a, x) => a + x.amount, 0);
+  const tot = S.wdTotal || 0;
   $('wTot').textContent = fmtN(tot); $('wTotN').textContent = S.wd.length ? `${t('wCnt')}: ${S.wd.length}` : t('wNone');
   $('wHint').textContent = t('wHint')(wdMax());
   const st = $('wStat');
@@ -844,23 +866,20 @@ function renderWd() {
   $('wWhy').textContent = !c4 ? t('wCool')(h, mm) : wd === 0 ? '' : !c1 ? t('r1') : !c2 ? t('r2') : !c3 ? t('r3')(reqHold, S.hold) : '';
   $('wToShop').classList.toggle('hidden', !(wd > 0 && c1 && c2 && !c3));
   $('wHistBox').classList.toggle('hidden', !S.wd.length);
-  $('wHist').innerHTML = S.wd.map(x => `<div class="flex items-center justify-between gap-2"><span>${new Date(x.ts).toLocaleString(LOCALE[S.lang], { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}</span><span class="text-[10px] font-bold text-amber bg-amber/10 rounded-full px-2 py-0.5">${t('wPend')}</span><span class="num text-neutral-200">-${fmtN(x.amount)} ⭐</span></div>`).join('');
+  $('wHist').innerHTML = S.wd.map(x => `<div class="flex items-center justify-between gap-2"><span>${new Date(x.ts).toLocaleString(LOCALE[S.lang], { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}</span>${wdBadge(x)}<span class="num text-neutral-200">-${fmtN(x.amount)} ⭐</span></div>`).join('');
 }
 $('wAmt').oninput = e => { const v = Math.floor(+e.target.value); wd = isFinite(v) && v > 0 ? v : 0; renderWd(); };
 $('wMax').onclick = () => { wd = wdMax(); $('wAmt').value = wd || ''; renderWd(); };
 $('wToShop').onclick = () => go('shop');
 $('wBtn').onclick = async () => {
   const a = wd; $('wBtn').disabled = true;
-  try { await api('/withdraw', { amount:a }); }
-  catch (e) { if (!DEMO_MODE) { toast(t('wdFail')); return renderWd(); } }
-  S.balance -= a; S.wdTotal = (S.wdTotal || 0) + a; S.wd.unshift({ ts:Date.now(), amount:a }); S.wd = S.wd.slice(0, 10);
+  const wid = Date.now(); let srv = false;
+  try { await rawApi('/withdraw', { amount:a }); srv = true; } catch (e) { if (e && e.msg) { toast(e.msg); return renderWd(); } }
+  S.balance -= a; S.wd.unshift({ id:wid, ts:wid, amount:a, status:'pending' }); S.wd = S.wd.slice(0, 10);
+  if (!srv) { R.wd.unshift({ id:wid, uid:myId, name:myName || ('ID ' + myId), amount:a, ts:wid, status:'pending' }); rsave(); }
   wd = 0; $('wAmt').value = ''; save(); renderStatic(); toast(t('wdDone'));
   if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
 };
-/* demo-инструменты — удалить перед релизом */
-$('tBal').onclick = () => { S.balance += 800; save(); renderStatic(); };
-$('tHold').onclick = () => { settle(); S.hold += 200; S.holdBought = true; save(); renderStatic(); renderShop(); };
-$('reset').onclick = () => { S = fresh(); shown = 0; amt = 0; wd = 0; $('amt').value = ''; $('wAmt').value = ''; save(); applyLang(); };
 
 /* ================= Друзья (реферальная система) ================= */
 const BOT_LINK = 'https://t.me/PulseStarr_bot/app';     // ← ваш бот / Mini App
@@ -912,10 +931,6 @@ async function loadFriends() {
   try { const d = await api('/referrals', {}); if (Array.isArray(d.friends)) { S.friends = d.friends; S.refEarned = +d.earned || 0; save(); } } catch (e) { /* без бэкенда — локальные данные */ }
   renderFriends();
 }
-/* demo-инструменты — удалить перед релизом */
-$('tFr').onclick = () => { S.friends.push({ id:Date.now(), name:`${t('friendN')} ${S.friends.length + 1}`, hold:0, earned:0 }); save(); renderFriends(); };
-$('tFrAct').onclick = () => { const f = S.friends.find(x => !isActive(x)); if (f) { f.hold = ACTIVE_HOLD; save(); renderFriends(); } };
-$('tFrCol').onclick = () => { const f = S.friends.find(isActive); if (!f) return toast(t('noActive')); friendCollect(f, BASE_DAILY); };
 
 /* ================= Общее ================= */
 const LANGS = ['ru', 'uk', 'en'], LANG_LBL = { ru:'RU', uk:'UA', en:'EN' }, LOCALE = { ru:'ru-RU', uk:'uk-UA', en:'en-GB' };
@@ -936,7 +951,7 @@ document.querySelectorAll('.tab[data-tab]').forEach(b => b.onclick = () => {
   if (b.dataset.tab === 'upgrader') renderUp();
   if (b.dataset.tab === 'tasks') renderTasks();
   if (b.dataset.tab === 'stake') renderStake();
-  if (b.dataset.tab === 'withdraw') renderWd();
+  if (b.dataset.tab === 'withdraw') { renderWd(); pullMyWd(); }
   if (tg && tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
 });
 
@@ -1195,11 +1210,113 @@ $('skList').onclick = e => {
 };
 $('skLim').onclick = () => $('skLimBox').classList.toggle('hidden');
 $('skBack').onclick = openMenu; $('skShop').onclick = () => go('shop');
-$('tSk').onclick = () => { S.stakes.forEach(x => x.end = Date.now() - 1); save(); renderStake(); };
 setInterval(() => { if ($('v-stake').classList.contains('on')) renderStake(); }, 30000);
 SK_READY = true; renderStake();
 const u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
 if (u && u.photo_url) $('avatar').innerHTML = `<img src="${u.photo_url}" class="w-full h-full object-cover" alt="">`;
+
+/* ================= Выводы: статусы и доставка ================= */
+const myId = tgUser && tgUser.id ? String(tgUser.id) : 'local';
+const ADMIN_ID = 8822542289;
+const IS_ADMIN = !!(tgUser && Number(tgUser.id) === ADMIN_ID);   // только UI; реальную проверку обязан делать сервер по подписанному initData
+const RK = 'pulsestar_admin_db';
+let R; try { R = JSON.parse(localStorage.getItem(RK) || ''); } catch (e) {}
+if (!R || !R.users || !R.wd) R = { users:{}, wd:[] };
+function rsave() { try { localStorage.setItem(RK, JSON.stringify(R)); } catch (e) {} }
+async function rawApi(path, body) {
+  const r = await fetch(API_URL + path, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ ...body, initData: tg ? tg.initData : '' }) });
+  if (!(r.headers.get('content-type') || '').includes('json')) throw { net:1 };
+  const d = await r.json(); if (!r.ok) throw { msg:d.error || ('HTTP ' + r.status) }; return d;
+}
+function applyWdStatus(id, st) {
+  const x = S.wd.find(w => w.id === id); if (!x || x.status !== 'pending' || x.status === st) return;
+  x.status = st; if (st === 'approved') S.wdTotal = (S.wdTotal || 0) + x.amount; if (st === 'rejected') S.balance += x.amount; save();
+}
+function syncMyWd() { S.wd.forEach(x => { if (x.id && x.status === 'pending') { const r = R.wd.find(w => w.id === x.id); if (r && r.status !== 'pending') applyWdStatus(x.id, r.status); } }); }
+async function pullMyWd() { try { const d = await rawApi('/my-withdrawals', {}); (d.items || []).forEach(i => applyWdStatus(i.id, i.status)); renderStatic(); } catch (e) {} }
+const WB = { ru:['Выплачено','Отклонено'], uk:['Виплачено','Відхилено'], en:['Paid','Rejected'] };
+function wdBadge(x) {
+  const [ok, no] = WB[S.lang] || WB.ru;
+  return x.status === 'approved' ? `<span class="text-[10px] font-bold text-ok bg-ok/10 rounded-full px-2 py-0.5">${ok}</span>`
+    : x.status === 'rejected' ? `<span class="text-[10px] font-bold text-bad bg-bad/10 rounded-full px-2 py-0.5">${no}</span>`
+    : `<span class="text-[10px] font-bold text-amber bg-amber/10 rounded-full px-2 py-0.5">${t('wPend')}</span>`;
+}
+
+/* ================= Админ-панель ================= */
+if (!IS_ADMIN) { $('v-admin').remove(); document.querySelector('[data-tab="admin"]').remove(); }
+else {
+  const A = { u:null, mode:null, f:'pending', wd:[] };
+  $('avatar').style.borderColor = 'rgba(250,204,21,.7)'; $('avatar').style.cursor = 'pointer';
+  $('avatar').onclick = () => go('admin');
+  const holdOf = id => id === myId ? S.hold : ((R.users[id] || {}).hold || 0);
+  const locUser = id => id === myId ? { id, name:myName || 'Вы', balance:S.balance, hold:S.hold } : (R.users[id] || (R.users[id] = { id, name:'ID ' + id, balance:0, hold:0 }));
+  async function admCall(op, body, local) {
+    try { const d = await rawApi('/admin/' + op, body); A.mode = 'server'; return d; }
+    catch (e) { if (e && e.msg) { toast(e.msg); return null; } A.mode = 'local'; return local(); }
+  }
+  function locMove(id, f, d) {
+    if (id === myId) { settle(); S[f] = Math.max(0, Math.round((S[f] + d) * 100) / 100); save(); renderStatic(); renderShop(); renderStake(); return locUser(id); }
+    const u = locUser(id); u[f] = Math.max(0, Math.round((u[f] + d) * 100) / 100); rsave(); return u;
+  }
+  function locDecide(id, st) {
+    const x = R.wd.find(w => w.id === id); if (!x || x.status !== 'pending') { toast('Заявка уже обработана'); return null; }
+    x.status = st;
+    if (x.uid === myId) { applyWdStatus(id, st); renderStatic(); }
+    else if (st === 'rejected') { const u = locUser(x.uid); u.balance += x.amount; }
+    rsave(); return { ok:true };
+  }
+  const fmtWd = x => new Date(x.ts).toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+  function renderAdm() {
+    $('aMode').textContent = A.mode === 'server' ? '● сервер' : A.mode === 'local' ? '● локально: только это устройство' : '';
+    $('aMode').className = 'text-[10px] font-bold ' + (A.mode === 'server' ? 'text-ok' : 'text-amber');
+    const u = A.u;
+    if (!u) $('aUser').innerHTML = '<div class="text-xs text-neutral-500">Введите ID и нажмите «Найти»</div>';
+    else { const I = info(levelByHold(u.hold)), lg = LEAGUES[I.lg];
+      $('aUser').innerHTML = `<div class="rounded-xl bg-bg p-3 space-y-1.5 text-xs"><div class="flex justify-between"><b class="text-sm">${esc(u.name || 'ID ' + u.id)}</b><span class="text-neutral-500 num">ID ${esc(u.id)}</span></div>
+        <div class="flex justify-between"><span class="text-neutral-400">Баланс</span><b class="num">${f2(u.balance)} ⭐</b></div>
+        <div class="flex justify-between"><span class="text-neutral-400">Холд</span><b class="num text-gold">${fmtN(u.hold)} ⭐</b></div>
+        <div class="flex justify-between"><span class="text-neutral-400">Уровень / лига</span><b>${I.n} · ${lg.icon} ${lg.ru}</b></div></div>`; }
+    $('aWdList').innerHTML = A.wd.length ? A.wd.map(x => {
+      const need = Math.ceil(x.amount * WD_HOLD_PCT), ok = x.amount >= WD_MIN && (x.hold || 0) >= need;
+      return `<div class="rounded-xl bg-bg border border-line p-3 text-xs space-y-2"><div class="flex justify-between gap-2"><div class="min-w-0"><b class="truncate block">${esc(x.name || 'ID ' + x.uid)}</b><span class="text-neutral-500 num">ID ${esc(x.uid)} · ${fmtWd(x)}</span></div><b class="num text-sm shrink-0">${fmtN(x.amount)} ⭐</b></div>
+        <div class="flex justify-between items-center gap-2"><span class="${ok ? 'text-ok' : 'text-bad'} num">${ok ? '✓ условия выполнены' : `✕ нужен холд ${fmtN(need)}, есть ${fmtN(x.hold || 0)}`}</span>${wdBadge(x)}</div>
+        ${x.status === 'pending' ? `<div class="grid grid-cols-2 gap-2"><button data-d="approved" data-id="${x.id}" class="cta rounded-xl py-2.5 font-bold">Одобрить вывод</button><button data-d="rejected" data-id="${x.id}" class="rounded-xl py-2.5 font-bold border border-bad/40 text-bad bg-bad/10">Отклонить</button></div>` : ''}</div>`;
+    }).join('') : '<div class="text-xs text-neutral-500 text-center py-3">Заявок нет</div>';
+  }
+  async function admLoadWd() {
+    const d = await admCall('withdrawals', { status:A.f }, () => ({ items:R.wd.filter(x => A.f === 'all' || x.status === A.f).map(x => ({ ...x, hold:holdOf(x.uid) })) }));
+    if (d) { A.wd = d.items || []; renderAdm(); }
+  }
+  async function admFind() {
+    const id = $('aId').value.replace(/\D/g, ''); if (!id) return toast('Введите Telegram ID');
+    const u = await admCall('user', { id }, () => locUser(id)); if (u) { A.u = u; renderAdm(); }
+  }
+  async function admMove(f, sign) {
+    if (!A.u) return toast('Сначала найдите пользователя');
+    const v = Math.abs(+$(f === 'hold' ? 'aHold' : 'aBal').value); if (!(v > 0)) return toast('Введите сумму');
+    const id = String(A.u.id), d = sign * v;
+    const u = await admCall(f, { id, delta:d }, () => locMove(id, f, d)); if (!u) return;
+    if (id === myId && A.mode === 'server') locMove(id, f, d);
+    A.u = u; renderAdm(); admLoadWd(); toast((sign > 0 ? '+' : '−') + fmtN(v) + ' ⭐');
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+  }
+  $('aFind').onclick = admFind; $('aId').onkeydown = e => { if (e.key === 'Enter') admFind(); };
+  $('aHoldAdd').onclick = () => admMove('hold', 1); $('aHoldSub').onclick = () => admMove('hold', -1);
+  $('aBalAdd').onclick = () => admMove('balance', 1); $('aBalSub').onclick = () => admMove('balance', -1);
+  $('aBack').onclick = () => go('mining'); $('aRefresh').onclick = admLoadWd;
+  $('aFilter').onclick = e => { const b = e.target.closest('[data-f]'); if (!b) return; A.f = b.dataset.f; document.querySelectorAll('#aFilter .chip').forEach(c => c.classList.toggle('on', c === b)); admLoadWd(); };
+  $('aWdList').onclick = async e => {
+    const b = e.target.closest('[data-d]'); if (!b) return; b.disabled = true;
+    const id = +b.dataset.id, st = b.dataset.d;
+    const r = await admCall('withdraw', { id, status:st }, () => locDecide(id, st));
+    if (r) toast(st === 'approved' ? 'Вывод одобрен' : 'Заявка отклонена');
+    admLoadWd();
+  };
+  document.querySelector('[data-tab="admin"]').addEventListener('click', async () => {
+    if (!$('aId').value) $('aId').value = myId !== 'local' ? myId : '';
+    await admCall('ping', {}, () => ({})); renderAdm(); admLoadWd();
+  });
+}
 
 applyLang(); renderCalc(curLvl()); requestAnimationFrame(tick);
 
