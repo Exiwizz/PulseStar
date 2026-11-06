@@ -754,6 +754,7 @@ $('collect').onclick = () => {
   const amt = pending();
   if (amt < 0.01) return toast(t('nothing'));
   S.balance += amt; S.last = Date.now(); shown = 0; save(); renderStatic();
+  rawApi('/collect', { amount:amt }).catch(() => {});
   $('bal').classList.remove('bump'); void $('bal').offsetWidth; $('bal').classList.add('bump');
   toast(t('got')(amt.toFixed(2)));
   if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
@@ -802,7 +803,7 @@ $('toShop').onclick = () => go('shop');
 $('hdrLvlBtn').onclick = $('leagueCard').onclick = () => go('levels');
 
 /* ================= Магазин: пополнение внутреннего холда ================= */
-const API_URL = '/api';                // POST /api/create-invoice {amount, initData} -> {link};  POST /api/withdraw {amount, initData}
+const API_URL = 'https://ВАШ-СЕРВЕР/api';   // ← адрес вашего сервера с bot/server.py (без слэша в конце)                // POST /api/create-invoice {amount, initData} -> {link};  POST /api/withdraw {amount, initData}
 let amt = 0;
 const row = (a, b, c = '') => `<div class="flex justify-between gap-3"><span>${a}</span><span class="num ${c}">${b}</span></div>`;
 function renderShop() {
@@ -832,7 +833,7 @@ $('payBtn').onclick = async () => {
     if (!tg || !tg.openInvoice) throw new Error('no-tg');
     const { link } = await api('/create-invoice', { amount:a });
     tg.openInvoice(link, st => {   // 'paid' | 'cancelled' | 'failed' | 'pending'
-      if (st === 'paid') applyTopUp(a);   // продакшен: холд зачисляет бэкенд по successful_payment
+      if (st === 'paid') { toast(t('pending')); [1500, 4000, 9000].forEach(ms => setTimeout(() => syncState(true), ms)); }   // холд зачисляет сервер
       else if (st === 'pending') toast(t('pending'));
       else toast(st === 'failed' ? t('payFailed') : t('cancelled'));
     });
@@ -874,7 +875,7 @@ $('wToShop').onclick = () => go('shop');
 $('wBtn').onclick = async () => {
   const a = wd; $('wBtn').disabled = true;
   const wid = Date.now(); let srv = false;
-  try { await rawApi('/withdraw', { amount:a }); srv = true; } catch (e) { if (e && e.msg) { toast(e.msg); return renderWd(); } }
+  try { await syncState(); await rawApi('/withdraw', { amount:a, id:wid }); srv = true; } catch (e) { if (e && e.msg) { toast(e.msg); return renderWd(); } }
   S.balance -= a; S.wd.unshift({ id:wid, ts:wid, amount:a, status:'pending' }); S.wd = S.wd.slice(0, 10);
   if (!srv) { R.wd.unshift({ id:wid, uid:myId, name:myName || ('ID ' + myId), amount:a, ts:wid, status:'pending' }); rsave(); }
   wd = 0; $('wAmt').value = ''; save(); renderStatic(); toast(t('wdDone'));
@@ -1296,7 +1297,7 @@ else {
     const v = Math.abs(+$(f === 'hold' ? 'aHold' : 'aBal').value); if (!(v > 0)) return toast('Введите сумму');
     const id = String(A.u.id), d = sign * v;
     const u = await admCall(f, { id, delta:d }, () => locMove(id, f, d)); if (!u) return;
-    if (id === myId && A.mode === 'server') locMove(id, f, d);
+    if (id === myId && A.mode === 'server') syncState();
     A.u = u; renderAdm(); admLoadWd(); toast((sign > 0 ? '+' : '−') + fmtN(v) + ' ⭐');
     if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
   }
@@ -1319,6 +1320,26 @@ else {
 }
 
 applyLang(); renderCalc(curLvl()); requestAnimationFrame(tick);
+
+/* ================= Синхронизация с сервером ================= */
+let syncing = false;
+async function syncState(notify) {
+  if (!tg || !tg.initData || syncing) return; syncing = true;
+  try {
+    const sp = tg.initDataUnsafe && tg.initDataUnsafe.start_param;
+    const d = await rawApi('/sync', { hold:S.hold, balance:S.balance, ref:sp || '' });
+    if (d.hold_add || d.bal_add) {
+      const l0 = curLvl(); settle();
+      S.hold = Math.max(0, S.hold + d.hold_add); S.balance = Math.max(0, S.balance + d.bal_add);
+      if (d.hold_add > 0) S.holdBought = true;
+      save(); renderStatic(); renderShop(); renderStake();
+      if (notify && d.hold_add > 0) toast(curLvl() > l0 ? `🎉 ${t('lvl')} ${curLvl()}` : t('done'));
+    }
+    pullMyWd();
+  } catch (e) {} finally { syncing = false; }
+}
+syncState(); setInterval(syncState, 30000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) syncState(); });
 
 /* ================= Welcome: выбор языка при первом запуске ================= */
 (function welcome() {
