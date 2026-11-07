@@ -803,7 +803,7 @@ $('toShop').onclick = () => go('shop');
 $('hdrLvlBtn').onclick = $('leagueCard').onclick = () => go('levels');
 
 /* ================= Магазин: пополнение внутреннего холда ================= */
-const API_URL = 'https://ВАШ-СЕРВЕР/api';   // ← адрес вашего сервера с bot/server.py (без слэша в конце)                // POST /api/create-invoice {amount, initData} -> {link};  POST /api/withdraw {amount, initData}
+const API_URL = 'https://astrology-epic-murray-rebates.trycloudflare.com/api';   // адрес сервера (туннель); при новом запуске cloudflared поменять                // POST /api/create-invoice {amount, initData} -> {link};  POST /api/withdraw {amount, initData}
 let amt = 0;
 const row = (a, b, c = '') => `<div class="flex justify-between gap-3"><span>${a}</span><span class="num ${c}">${b}</span></div>`;
 function renderShop() {
@@ -823,8 +823,7 @@ function applyTopUp(a) {            // сумма сразу фиксирует�
 }
 async function api(path, body) {
   const r = await fetch(API_URL + path, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ ...body, initData: tg ? tg.initData : '' }) });
-  if (!r.ok) { let m = ''; try { m = (await r.json()).error || ''; } catch (e) {} throw new Error(m || ('HTTP ' + r.status)); }
-  return r.json();
+  if (!r.ok) throw new Error(path); return r.json();
 }
 $('amt').oninput = e => { const v = Math.floor(+e.target.value); amt = isFinite(v) && v > 0 ? Math.min(v, 1e9) : 0; renderShop(); };
 $('presets').onclick = e => { const b = e.target.closest('[data-p]'); if (!b) return; amt = Math.min(amt + +b.dataset.p, 1e9); $('amt').value = amt; renderShop(); };
@@ -838,13 +837,7 @@ $('payBtn').onclick = async () => {
       else if (st === 'pending') toast(t('pending'));
       else toast(st === 'failed' ? t('payFailed') : t('cancelled'));
     });
-  } catch (e) {
-    const m = String(e && e.message || e);
-    toast(m === 'no-tg' ? 'Откройте приложение внутри Telegram, не в браузере'
-        : e instanceof TypeError ? 'Сервер недоступен. Проверьте API_URL (нужен https) и что server.py запущен'
-        : t('noInvoice') + ': ' + m);
-    console.error('create-invoice:', e);
-  }
+  } catch (e) { toast(t('noInvoice')); }
 };
 
 /* ================= Вывод ================= */
