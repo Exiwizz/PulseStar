@@ -803,7 +803,7 @@ $('toShop').onclick = () => go('shop');
 $('hdrLvlBtn').onclick = $('leagueCard').onclick = () => go('levels');
 
 /* ================= Магазин: пополнение внутреннего холда ================= */
-const API_URL = 'https://astrology-epic-murray-rebates.trycloudflare.com/api';   // адрес сервера (туннель); при новом запуске cloudflared поменять                // POST /api/create-invoice {amount, initData} -> {link};  POST /api/withdraw {amount, initData}
+const API_URL = 'https://ben-reduced-males-charge.trycloudflare.com/api';   // адрес сервера (туннель); при новом запуске cloudflared поменять                // POST /api/create-invoice {amount, initData} -> {link};  POST /api/withdraw {amount, initData}
 let amt = 0;
 const row = (a, b, c = '') => `<div class="flex justify-between gap-3"><span>${a}</span><span class="num ${c}">${b}</span></div>`;
 function renderShop() {
@@ -1253,7 +1253,12 @@ else {
   const locUser = id => id === myId ? { id, name:myName || 'Вы', balance:S.balance, hold:S.hold } : (R.users[id] || (R.users[id] = { id, name:'ID ' + id, balance:0, hold:0 }));
   async function admCall(op, body, local) {
     try { const d = await rawApi('/admin/' + op, body); A.mode = 'server'; return d; }
-    catch (e) { if (e && e.msg) { toast(e.msg); return null; } A.mode = 'local'; return local(); }
+    catch (e) {
+      if (e && e.msg) { toast(e.msg); return null; }
+      A.mode = 'local';
+      if (['user', 'hold', 'balance'].includes(op) && String(body.id) !== myId) { toast('Сервер недоступен: другим игрокам изменения невозможны'); renderAdm(); return null; }
+      return local();
+    }
   }
   function locMove(id, f, d) {
     if (id === myId) { settle(); S[f] = Math.max(0, Math.round((S[f] + d) * 100) / 100); save(); renderStatic(); renderShop(); renderStake(); return locUser(id); }
@@ -1276,7 +1281,7 @@ else {
       $('aUser').innerHTML = `<div class="rounded-xl bg-bg p-3 space-y-1.5 text-xs"><div class="flex justify-between"><b class="text-sm">${esc(u.name || 'ID ' + u.id)}</b><span class="text-neutral-500 num">ID ${esc(u.id)}</span></div>
         <div class="flex justify-between"><span class="text-neutral-400">Баланс</span><b class="num">${f2(u.balance)} ⭐</b></div>
         <div class="flex justify-between"><span class="text-neutral-400">Холд</span><b class="num text-gold">${fmtN(u.hold)} ⭐</b></div>
-        <div class="flex justify-between"><span class="text-neutral-400">Уровень / лига</span><b>${I.n} · ${lg.icon} ${lg.ru}</b></div></div>`; }
+        <div class="flex justify-between"><span class="text-neutral-400">Уровень / лига</span><b>${I.n} · ${lg.icon} ${lg.ru}</b></div>${u.seen === undefined ? '' : `<div class="text-[10px] text-neutral-500">${u.seen ? 'Был в приложении: ' + new Date(u.seen * 1000).toLocaleString('ru-RU') : 'Ещё не заходил — изменения применятся при первом входе'}</div>`}${(u.ph || u.pb) ? `<div class="text-[11px] font-bold text-amber">⏳ Ожидает доставки игроку: холд ${u.ph > 0 ? '+' : ''}${u.ph || 0}, баланс ${u.pb > 0 ? '+' : ''}${u.pb || 0}</div>` : ''}</div>`; }
     $('aWdList').innerHTML = A.wd.length ? A.wd.map(x => {
       const need = Math.ceil(x.amount * WD_HOLD_PCT), ok = x.amount >= WD_MIN && (x.hold || 0) >= need;
       return `<div class="rounded-xl bg-bg border border-line p-3 text-xs space-y-2"><div class="flex justify-between gap-2"><div class="min-w-0"><b class="truncate block">${esc(x.name || 'ID ' + x.uid)}</b><span class="text-neutral-500 num">ID ${esc(x.uid)} · ${fmtWd(x)}</span></div><b class="num text-sm shrink-0">${fmtN(x.amount)} ⭐</b></div>
